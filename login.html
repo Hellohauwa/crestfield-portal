@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in — Crestfield College</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    .field{width:100%;height:48px;padding:0 14px;border:1.5px solid #CBD5E1;border-radius:10px;font:16px Inter,sans-serif;color:#0F172A;background:#fff}
+    .field:focus{outline:3px solid #BFDBFE;border-color:#1E3A8A}
+    .field[aria-invalid="true"]{border-color:#B91C1C}
+  </style>
+</head>
+<body class="bg-page font-sans text-ink antialiased">
+<div class="min-h-screen flex flex-col lg:flex-row">
+
+  <!-- Navy panel (side on desktop, header on phone) -->
+  <aside class="bg-navy text-white px-6 pt-10 pb-14 lg:p-14 lg:basis-[420px] lg:flex-1 lg:max-w-[560px] flex flex-col lg:justify-between gap-7 lg:gap-10">
+    <a href="index.html" class="flex items-center gap-2.5 lg:gap-3 text-white">
+      <span data-crest="36" class="inline-flex lg:hidden"></span>
+      <span data-crest="44" class="hidden lg:inline-flex"></span>
+      <span class="font-display font-extrabold text-lg lg:text-[22px]">Crestfield College</span>
+    </a>
+    <div>
+      <h1 class="font-display font-extrabold text-[28px] lg:text-[42px] leading-[1.12] mb-2 lg:mb-4"><span class="lg:hidden">Welcome back</span><span class="hidden lg:inline">Welcome back to your student portal.</span></h1>
+      <p class="text-[15px] lg:text-[17px] leading-relaxed text-indigo-200 max-w-[440px]">Log in to see your results, attendance, fees and class timetable<span class="hidden lg:inline"> for this term</span>.</p>
+    </div>
+    <div class="hidden lg:block text-sm text-indigo-200" id="term-label-desktop"></div>
+  </aside>
+
+  <main class="flex-1 lg:flex-[999_1_560px] min-w-0 flex flex-col items-center lg:justify-center px-4 lg:px-6 lg:py-12">
+    <div class="w-full max-w-[420px] -mt-7 lg:mt-0">
+
+      <!-- Log in -->
+      <form id="login-form" class="bg-white border border-slate-200 rounded-[20px] p-6 lg:p-10 shadow-lift" novalidate>
+        <h2 class="hidden lg:block font-display font-bold text-[28px] mb-1.5">Log in</h2>
+        <p class="hidden lg:block text-[15px] text-slate-600 mb-7">Use the email you signed up with.</p>
+        <div id="login-notice" class="hidden mb-5 rounded-[10px] px-3.5 py-3 text-sm" role="status"></div>
+
+        <label for="email" class="block text-sm font-semibold mb-1.5">Email address</label>
+        <input id="email" name="email" type="email" autocomplete="email" required class="field mb-[18px]">
+
+        <div class="flex justify-between items-baseline mb-1.5">
+          <label for="password" class="text-sm font-semibold">Password</label>
+          <button type="button" data-mode="forgot" class="hidden lg:inline text-sm font-semibold text-navy hover:underline">Forgot password?</button>
+        </div>
+        <div class="relative">
+          <input id="password" name="password" type="password" autocomplete="current-password" required class="field" style="padding-right:76px">
+          <button type="button" data-toggle="password" class="absolute right-1.5 top-1.5 h-9 px-3 rounded-lg bg-slate-100 text-navy text-[13px] font-semibold">Show</button>
+        </div>
+        <div class="text-right lg:hidden mt-1"><button type="button" data-mode="forgot" class="inline-flex items-center min-h-[44px] text-sm font-semibold text-navy">Forgot password?</button></div>
+
+        <p id="login-error" class="hidden mt-4 text-sm font-medium text-red-700" role="alert"></p>
+        <button type="submit" id="login-btn" class="mt-6 lg:mt-7 w-full flex items-center justify-center min-h-[52px] rounded-xl bg-navy text-white font-semibold text-base hover:bg-navy-dark disabled:opacity-60">Log in</button>
+        <p class="hidden lg:block mt-6 text-center text-[15px] text-slate-600">New student? <a href="signup.html" class="font-semibold text-navy hover:underline">Sign up</a></p>
+      </form>
+
+      <!-- Forgot password -->
+      <form id="forgot-form" class="hidden bg-white border border-slate-200 rounded-[20px] p-6 lg:p-10 shadow-lift" novalidate>
+        <h2 class="font-display font-bold text-2xl lg:text-[28px] mb-1.5">Forgot password</h2>
+        <p class="text-[15px] text-slate-600 mb-6">Enter your email and we'll send you a link to set a new password.</p>
+        <label for="forgot-email" class="block text-sm font-semibold mb-1.5">Email address</label>
+        <input id="forgot-email" type="email" autocomplete="email" required class="field">
+        <p id="forgot-msg" class="hidden mt-4 text-sm font-medium" role="status"></p>
+        <button type="submit" id="forgot-btn" class="mt-6 w-full flex items-center justify-center min-h-[52px] rounded-xl bg-navy text-white font-semibold text-base hover:bg-navy-dark disabled:opacity-60">Send reset link</button>
+        <button type="button" data-mode="login" class="mt-3 w-full min-h-[44px] text-[15px] font-semibold text-navy">Back to log in</button>
+      </form>
+
+      <!-- Set a new password (opened from the reset email) -->
+      <form id="reset-form" class="hidden bg-white border border-slate-200 rounded-[20px] p-6 lg:p-10 shadow-lift" novalidate>
+        <h2 class="font-display font-bold text-2xl lg:text-[28px] mb-1.5">Set a new password</h2>
+        <p class="text-[15px] text-slate-600 mb-6">Choose a password with at least 8 characters.</p>
+        <label for="new-password" class="block text-sm font-semibold mb-1.5">New password</label>
+        <input id="new-password" type="password" autocomplete="new-password" required minlength="8" class="field mb-[18px]">
+        <label for="confirm-new-password" class="block text-sm font-semibold mb-1.5">Confirm new password</label>
+        <input id="confirm-new-password" type="password" autocomplete="new-password" required class="field">
+        <p id="reset-error" class="hidden mt-4 text-sm font-medium text-red-700" role="alert"></p>
+        <button type="submit" id="reset-btn" class="mt-6 w-full flex items-center justify-center min-h-[52px] rounded-xl bg-navy text-white font-semibold text-base hover:bg-navy-dark disabled:opacity-60">Save new password</button>
+      </form>
+
+      <p class="lg:hidden mt-6 text-center text-[15px] text-slate-600">New student? <a href="signup.html" class="font-semibold text-navy">Sign up</a></p>
+      <p class="lg:hidden mt-auto pt-8 pb-6 text-center text-[13px] text-slate-500" id="term-label-mobile"></p>
+    </div>
+  </main>
+</div>
+
+<script>
+  mountCrests();
+  const termLabel = TERM_NAMES[SCHOOL.currentTerm] + ' · ' + SCHOOL.currentSession + ' Session';
+  document.getElementById('term-label-desktop').textContent = termLabel;
+  document.getElementById('term-label-mobile').textContent = termLabel;
+
+  const forms = { login: 'login-form', forgot: 'forgot-form', reset: 'reset-form' };
+  function showMode(mode) {
+    Object.entries(forms).forEach(([key, id]) => document.getElementById(id).classList.toggle('hidden', key !== mode));
+  }
+  document.querySelectorAll('[data-mode]').forEach((btn) => btn.addEventListener('click', () => {
+    if (btn.dataset.mode === 'forgot') document.getElementById('forgot-email').value = document.getElementById('email').value;
+    showMode(btn.dataset.mode);
+  }));
+
+  document.querySelectorAll('[data-toggle]').forEach((btn) => btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.toggle);
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Hide' : 'Show';
+  }));
+
+  function show(el, text, tone) {
+    el.textContent = text;
+    el.classList.remove('hidden', 'text-red-700', 'text-green-700');
+    if (tone) el.classList.add(tone);
+  }
+
+  // Messages passed from other pages
+  const params = new URLSearchParams(window.location.search);
+  const notice = document.getElementById('login-notice');
+  if (params.get('signed_up') === '1') {
+    notice.className = 'mb-5 rounded-[10px] px-3.5 py-3 text-sm bg-green-50 text-green-800';
+    notice.textContent = 'Account created. Check your email and click the link to confirm, then log in here.';
+  } else if (params.get('reset') === '1') {
+    notice.className = 'mb-5 rounded-[10px] px-3.5 py-3 text-sm bg-green-50 text-green-800';
+    notice.textContent = 'Your password has been changed. Please log in.';
+  }
+
+  // Password-reset links land here with type=recovery
+  const isRecovery = /type=recovery/.test(window.location.hash);
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') showMode('reset');
+  });
+  if (isRecovery) showMode('reset'); else redirectIfLoggedIn();
+
+  // Log in
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = document.getElementById('login-error');
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    err.classList.add('hidden');
+    if (!email || !password) return show(err, 'Please enter your email and password.', 'text-red-700');
+    const btn = document.getElementById('login-btn');
+    btn.disabled = true; btn.textContent = 'Logging in…';
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Log in';
+      return show(err, friendlyAuthError(error), 'text-red-700');
+    }
+    window.location.replace('portal.html');
+  });
+
+  // Forgot password — same message whether or not the email has an account
+  document.getElementById('forgot-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('forgot-msg');
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email) return show(msg, 'Please enter your email address.', 'text-red-700');
+    const btn = document.getElementById('forgot-btn');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: pageUrl('login.html') });
+    btn.disabled = false; btn.textContent = 'Send reset link';
+    if (error && /rate limit|too many/i.test(error.message)) return show(msg, friendlyAuthError(error), 'text-red-700');
+    show(msg, 'If this email has an account, a reset link has been sent.', 'text-green-700');
+  });
+
+  // Set new password
+  document.getElementById('reset-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = document.getElementById('reset-error');
+    const pw = document.getElementById('new-password').value;
+    const pw2 = document.getElementById('confirm-new-password').value;
+    if (pw.length < 8) return show(err, 'Password must be at least 8 characters.', 'text-red-700');
+    if (pw !== pw2) return show(err, 'The two passwords do not match.', 'text-red-700');
+    const btn = document.getElementById('reset-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const { error } = await sb.auth.updateUser({ password: pw });
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Save new password';
+      return show(err, friendlyAuthError(error), 'text-red-700');
+    }
+    await sb.auth.signOut();
+    window.location.replace('login.html?reset=1');
+  });
+</script>
+</body>
+</html>

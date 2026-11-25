@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Student Portal — Crestfield College</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    .field{width:100%;height:48px;padding:0 14px;border:1.5px solid #CBD5E1;border-radius:10px;font:16px Inter,sans-serif;color:#0F172A;background:#fff}
+    .field:focus{outline:3px solid #BFDBFE;border-color:#1E3A8A}
+    .clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .clamp2m{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    @media (min-width:1024px){.clamp2m{display:block;-webkit-line-clamp:unset;overflow:visible}}
+    .tnum{font-variant-numeric:tabular-nums}
+  </style>
+</head>
+<body class="bg-page font-sans text-ink antialiased">
+
+<!-- Loading screen while we check the session -->
+<div id="boot" class="min-h-screen flex flex-col items-center justify-center gap-4 text-slate-600">
+  <span data-crest="48"></span>
+  <p class="text-sm font-medium">Loading your portal…</p>
+</div>
+
+<div id="app" class="hidden min-h-screen lg:flex">
+
+  <!-- Desktop side menu -->
+  <aside class="hidden lg:flex w-[248px] flex-none bg-navy text-white px-4 py-6 flex-col gap-7 sticky top-0 h-screen overflow-y-auto">
+    <div class="flex items-center gap-2.5 px-2">
+      <span data-crest="34"></span>
+      <div><div class="font-display font-extrabold text-[17px]">Crestfield College</div><div class="text-xs text-indigo-200">Student Portal</div></div>
+    </div>
+    <nav aria-label="Main" id="side-nav" class="flex flex-col gap-1"></nav>
+    <div class="mt-auto border-t border-white/15 pt-4 px-2 flex items-center gap-2.5">
+      <div class="flex-none w-10 h-10 rounded-full bg-gold text-ink flex items-center justify-center font-bold text-[15px]" data-bind="initials"></div>
+      <div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate" data-bind="shortName"></div><div class="text-xs text-indigo-200" data-bind="className"></div></div>
+      <button type="button" data-action="logout" aria-label="Log out" title="Log out" class="flex items-center justify-center w-11 h-11 rounded-[10px] text-slate-300 hover:bg-white/10 hover:text-white">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div class="flex-1 min-w-0 flex flex-col">
+    <!-- Phone header -->
+    <header class="lg:hidden sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2.5">
+      <span data-crest="28"></span>
+      <div class="flex-1 min-w-0">
+        <h1 id="m-title" class="font-display font-bold text-lg leading-tight"></h1>
+        <div id="m-sub" class="text-xs text-slate-600"></div>
+      </div>
+      <a href="#profile" aria-label="Profile" class="w-11 h-11 rounded-full bg-gold text-ink flex items-center justify-center font-bold text-[15px]" data-bind="initials"></a>
+    </header>
+    <!-- Phone sub-tabs for the "More" pages -->
+    <div id="more-tabs" class="lg:hidden hidden bg-white border-b border-slate-200 px-2 grid grid-cols-3"></div>
+
+    <main id="view" class="flex-1 w-full max-w-[1100px] p-4 lg:px-10 lg:py-8 pb-28 lg:pb-8" tabindex="-1"></main>
+  </div>
+
+  <!-- Phone bottom menu -->
+  <nav aria-label="Main" id="bottom-nav" class="lg:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-slate-200 px-1 pt-1.5 pb-3.5 grid grid-cols-5 shadow-[0_-4px_12px_rgba(15,23,42,0.05)]"></nav>
+</div>
+
+<script>
+/* ---------- Icons ---------- */
+const ICON = {
+  dashboard: 'M3 10.5L12 3l9 7.5M5 9v11h5v-6h4v6h5V9',
+  results: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+  attendance: 'M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zM9 15l2 2 4-4',
+  fees: 'M3 7h15a3 3 0 013 3v7a3 3 0 01-3 3H3zM3 7V5a2 2 0 012-2h11M17 14h.01',
+  timetable: 'M12 7v5l3 2M12 21a9 9 0 110-18 9 9 0 010 18z',
+  announcements: 'M3 11v2a1 1 0 001 1h3l7 4V6L7 10H4a1 1 0 00-1 1zM18 9a3 3 0 010 6',
+  profile: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
+  more: 'M4 6h16M4 12h16M4 18h16',
+  book: 'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 21V5M8 7h7',
+  info: 'M12 8v5M12 16h.01M12 21a9 9 0 110-18 9 9 0 010 18z',
+  lock: 'M6 11h12v10H6zM8 11V7a4 4 0 018 0v4',
+  logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
+  left: 'M15 6l-6 6 6 6',
+  right: 'M9 6l6 6-6 6'
+};
+function icon(name, size, extra) {
+  return '<svg width="' + (size || 20) + '" height="' + (size || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ' + (extra || '') + '><path d="' + ICON[name] + '"/></svg>';
+}
+
+/* ---------- Views and menus ---------- */
+const VIEWS = {
+  dashboard: { label: 'Dashboard' },
+  results: { label: 'Results' },
+  attendance: { label: 'Attendance' },
+  fees: { label: 'Fees' },
+  timetable: { label: 'Timetable' },
+  announcements: { label: 'Announcements' },
+  profile: { label: 'Profile' }
+};
+const BOTTOM_TABS = [
+  { key: 'dashboard', label: 'Home', icon: 'dashboard' },
+  { key: 'results', label: 'Results', icon: 'results' },
+  { key: 'fees', label: 'Fees', icon: 'fees' },
+  { key: 'timetable', label: 'Timetable', icon: 'timetable' },
+  { key: 'announcements', label: 'More', icon: 'more', group: ['attendance', 'announcements', 'profile'] }
+];
+const MORE_TABS = [['attendance', 'Attendance'], ['announcements', 'Notices'], ['profile', 'Profile']];
+
+/* ---------- State ---------- */
+const state = {
+  user: null, profile: null, role: 'student',
+  results: [], attendance: [], fees: [], announcements: [], timetable: [],
+  errors: {},
+  ui: { resultsSession: null, resultsTerm: null, attMonth: null, ttDay: null, expanded: new Set(), pwOpen: false, pwMsg: null }
+};
+
+const termLabel = (term, session) => TERM_NAMES[term] + ', ' + session;
+const currentTermLabel = () => TERM_NAMES[SCHOOL.currentTerm] + ' · ' + SCHOOL.currentSession;
+const className = () => (state.profile && state.profile.classes && state.profile.classes.name) || '';
+const fullName = () => (state.profile && state.profile.full_name) || (state.user.user_metadata && state.user.user_metadata.full_name) || state.user.email;
+const fmtScore = (n) => Number.isInteger(n) ? String(n) : n.toFixed(1);
+const todayISO = () => toISODate(new Date());
+const todayWeekday = () => { const d = new Date().getDay(); return d >= 1 && d <= 5 ? WEEKDAYS[d - 1] : null; };
+const isNew = (a) => Date.now() - new Date(a.created_at).getTime() < 7 * 24 * 3600 * 1000;
+const sortKey = (session, term) => session + '-' + term;
+
+/* ---------- Data ---------- */
+async function loadAll() {
+  state.errors = {};
+  const uid = state.user.id;
+
+  const [p, r] = await Promise.all([
+    sb.from('profiles').select('id, full_name, admission_number, parent_phone, class_id, classes(name)').eq('id', uid).maybeSingle(),
+    sb.from('user_roles').select('role').eq('user_id', uid).maybeSingle()
+  ]);
+  if (p.error) state.errors.profile = true; else state.profile = p.data;
+  if (!r.error && r.data) state.role = r.data.role;
+
+  const classId = state.profile && state.profile.class_id;
+  const [res, att, fee, ann, tt] = await Promise.all([
+    sb.from('results').select('id, term, session, ca_score, exam_score, subjects(name)').eq('student_id', uid),
+    sb.from('attendance').select('date, status').eq('student_id', uid).order('date', { ascending: false }),
+    sb.from('fees').select('term, session, amount_due, amount_paid').eq('student_id', uid),
+    sb.from('announcements').select('id, title, body, created_at').order('created_at', { ascending: false }),
+    classId ? sb.from('timetable').select('day, period, subjects(name)').eq('class_id', classId) : Promise.resolve({ data: [], error: null })
+  ]);
+  [['results', res], ['attendance', att], ['fees', fee], ['announcements', ann], ['timetable', tt]].forEach(([key, q]) => {
+    if (q.error) { state.errors[key] = true; state[key] = []; } else state[key] = q.data || [];
+  });
+}
+
+/* ---------- Derived data ---------- */
+function resultRows(session, term) {
+  return state.results
+    .filter((r) => r.session === session && Number(r.term) === Number(term))
+    .map((r) => {
+      const ca = Number(r.ca_score) || 0, exam = Number(r.exam_score) || 0;
+      const total = Math.round((ca + exam) * 10) / 10;
+      return { subject: (r.subjects && r.subjects.name) || 'Subject', ca, exam, total, ...gradeFor(total) };
+    })
+    .sort((a, b) => a.subject.localeCompare(b.subject));
+}
+function latestResultTerm() {
+  const keys = [...new Set(state.results.map((r) => r.session + '|' + r.term))]
+    .map((k) => { const [session, term] = k.split('|'); return { session, term: Number(term) }; })
+    .sort((a, b) => sortKey(b.session, b.term).localeCompare(sortKey(a.session, a.term)));
+  const cur = keys.find((k) => k.session === SCHOOL.currentSession && k.term === SCHOOL.currentTerm);
+  return cur || keys[0] || null;
+}
+function summarise(rows) {
+  if (!rows.length) return null;
+  const sum = rows.reduce((s, r) => s + r.total, 0);
+  const avg = Math.round((sum / rows.length) * 10) / 10;
+  const caAvg = Math.round((rows.reduce((s, r) => s + r.ca, 0) / rows.length) * 10) / 10;
+  const exAvg = Math.round((rows.reduce((s, r) => s + r.exam, 0) / rows.length) * 10) / 10;
+  return { count: rows.length, sum: Math.round(sum * 10) / 10, avg, caAvg, exAvg, ...gradeFor(avg) };
+}
+function termAttendance() {
+  const rows = state.attendance.filter((a) => a.date >= SCHOOL.termStartDate);
+  const present = rows.filter((a) => a.status === 'present').length;
+  const absent = rows.filter((a) => a.status === 'absent').length;
+  const total = present + absent;
+  return { rows, present, absent, total, pct: total ? Math.round((present / total) * 100) : null };
+}
+function feeStatus(f) {
+  const due = Number(f.amount_due) || 0, paid = Number(f.amount_paid) || 0;
+  const balance = due - paid;
+  if (balance <= 0) return { balance, due, paid, label: 'Paid in full', pill: 'bg-green-100 text-green-700', text: 'text-green-700' };
+  if (paid > 0) return { balance, due, paid, label: 'Part payment', pill: 'bg-amber-100 text-amber-800', text: 'text-amber-800' };
+  return { balance, due, paid, label: 'Not paid', pill: 'bg-red-100 text-red-700', text: 'text-red-700' };
+}
+function currentFee() {
+  const sorted = [...state.fees].sort((a, b) => sortKey(b.session, b.term).localeCompare(sortKey(a.session, a.term)));
+  return sorted.find((f) => f.session === SCHOOL.currentSession && Number(f.term) === SCHOOL.currentTerm) || null;
+}
+function timetableMap() {
+  const map = {};
+  state.timetable.forEach((t) => { (map[t.day] = map[t.day] || {})[t.period] = (t.subjects && t.subjects.name) || ''; });
+  return map;
+}
+const TINTS = {
+  'Mathematics': 'bg-indigo-100 text-indigo-900', 'English Language': 'bg-pink-100 text-pink-900',
+  'Basic Science': 'bg-green-100 text-green-900', 'Basic Technology': 'bg-orange-100 text-orange-900',
+  'Civic Education': 'bg-amber-100 text-amber-900', 'Social Studies': 'bg-sky-100 text-sky-900',
+  'Business Studies': 'bg-purple-100 text-purple-900', 'Computer Studies': 'bg-teal-100 text-teal-900',
+  'French': 'bg-rose-100 text-rose-900', 'Igbo Language': 'bg-lime-100 text-lime-900'
+};
+const FALLBACK_TINTS = ['bg-cyan-100 text-cyan-900', 'bg-emerald-100 text-emerald-900', 'bg-violet-100 text-violet-900', 'bg-yellow-100 text-yellow-900', 'bg-fuchsia-100 text-fuchsia-900'];
+function tint(name) {
+  if (TINTS[name]) return TINTS[name];
+  let h = 0; for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return FALLBACK_TINTS[h % FALLBACK_TINTS.length];
+}
+
+/* ---------- Shared pieces ---------- */
+const card = 'bg-white border border-slate-200 rounded-2xl shadow-card';
+function pageHeader(title, sub, right) {
+  return '<div class="hidden lg:flex flex-wrap gap-3 items-center justify-between mb-6">' +
+    '<div><h1 class="font-display font-bold text-[28px]">' + title + '</h1><div class="text-sm text-slate-600 mt-0.5">' + sub + '</div></div>' +
+    (right || '') + '</div>';
+}
+const pill = (text, cls) => '<span class="px-3.5 py-2 rounded-full text-sm font-semibold ' + (cls || 'bg-white border border-slate-200 text-navy') + '">' + text + '</span>';
+function emptyState(title, text, iconName) {
+  return '<div class="bg-white border border-dashed border-slate-300 rounded-2xl px-6 py-12 lg:py-16 text-center">' +
+    '<div class="w-14 h-14 rounded-2xl bg-navy-tint text-navy mx-auto mb-4 flex items-center justify-center">' + icon(iconName || 'info', 26) + '</div>' +
+    '<h2 class="font-display font-bold text-lg lg:text-xl mb-1.5">' + title + '</h2>' +
+    '<p class="text-sm lg:text-[15px] text-slate-600 max-w-md mx-auto">' + text + '</p></div>';
+}
+function errorState() {
+  return '<div class="bg-white border border-red-200 rounded-2xl px-6 py-10 text-center">' +
+    '<h2 class="font-display font-bold text-lg mb-1.5">Something went wrong.</h2>' +
+    '<p class="text-sm text-slate-600 mb-5">We couldn\'t load this information. Please try again.</p>' +
+    '<button type="button" data-action="retry" class="inline-flex items-center min-h-[44px] px-5 rounded-xl bg-navy text-white font-semibold text-sm">Try again</button></div>';
+}
+function statCard(href, label, value, note, noteCls, iconName, iconBg) {
+  return '<a href="' + href + '" class="' + card + ' p-4 lg:p-5 text-ink hover:border-navy/30">' +
+    '<div class="flex justify-between items-center mb-1.5 lg:mb-3"><span class="text-[13px] lg:text-sm text-slate-600 font-medium">' + label + '</span>' +
+    '<span class="hidden lg:flex w-9 h-9 rounded-[10px] items-center justify-center ' + iconBg + '">' + icon(iconName, 18) + '</span></div>' +
+    '<div class="font-display font-extrabold text-[26px] lg:text-[32px] leading-tight">' + value + '</div>' +
+    '<div class="text-xs lg:text-[13px] font-semibold mt-0.5 lg:mt-1 ' + noteCls + '">' + note + '</div></a>';
+}
+
+/* ---------- Dashboard ---------- */
+function viewDashboard() {
+  const att = termAttendance();
+  const fee = currentFee();
+  const fs = fee ? feeStatus(fee) : null;
+  const lt = latestResultTerm();
+  const sum = lt ? summarise(resultRows(lt.session, lt.term)) : null;
+  const latest = state.announcements.slice(0, 3);
+  const day = todayWeekday();
+  const map = timetableMap();
+  const today = day && map[day] ? Object.keys(map[day]).map(Number).sort((a, b) => a - b) : [];
+  const staff = state.role !== 'student';
+  const cls = className();
+
+  let html = pageHeader('Dashboard', escapeHtml(formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })), pill(currentTermLabel()));
+
+  if (staff) {
+    html += '<div class="mb-4 lg:mb-6 rounded-2xl bg-gold-soft text-[#5C4300] px-5 py-4 text-sm lg:text-[15px] flex gap-3 items-start">' + icon('info', 20, 'class="flex-none mt-0.5"') +
+      '<span><strong>' + (state.role === 'admin' ? 'Admin' : 'Teacher') + ' pages are coming soon.</strong> For now you can see announcements and the timetable.</span></div>';
+  }
+
+  const coming = state.announcements[0];
+  html += '<section class="bg-navy text-white rounded-[20px] p-[22px] lg:px-8 lg:py-7 shadow-navy flex flex-wrap gap-5 items-center justify-between mb-4 lg:mb-6">' +
+    '<div><div class="text-sm lg:text-[15px] text-indigo-200 mb-0.5 lg:mb-1">Welcome back,</div>' +
+    '<h2 class="font-display font-extrabold text-[26px] lg:text-[30px] mb-3">' + escapeHtml(fullName()) + '</h2>' +
+    '<div class="flex flex-wrap gap-2">' +
+    (cls ? '<span class="px-3 py-1.5 rounded-full bg-gold text-ink text-[13px] font-semibold">Class: ' + escapeHtml(cls) + '</span>' : '') +
+    '<span class="px-3 py-1.5 rounded-full bg-white/15 text-[13px] font-semibold">' + termLabel(SCHOOL.currentTerm, SCHOOL.currentSession) + '</span>' +
+    (state.profile && state.profile.admission_number ? '<span class="hidden sm:inline px-3 py-1.5 rounded-full bg-white/15 text-[13px] font-semibold">' + escapeHtml(state.profile.admission_number) + '</span>' : '') +
+    '</div></div>' +
+    (coming ? '<div class="w-full lg:w-auto lg:max-w-[300px] bg-white/10 rounded-[14px] px-5 py-4"><div class="text-[13px] text-gold-light font-semibold mb-1">Latest notice</div><div class="text-[15px] leading-normal">' + escapeHtml(coming.title) + '</div></div>' : '') +
+    '</section>';
+
+  if (!staff) {
+    html += '<section class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-4 lg:mb-6">' +
+      statCard('#attendance', 'Attendance', att.pct === null ? '—' : att.pct + '%', att.total ? att.present + ' of ' + att.total + ' days present' : 'No attendance yet', att.total ? 'text-green-700' : 'text-slate-500', 'attendance', 'bg-green-100 text-green-700') +
+      statCard('#fees', 'Fees balance', fs ? formatNaira(fs.balance) : '—', fs ? fs.label : 'No fees record yet', fs ? fs.text : 'text-slate-500', 'fees', 'bg-amber-100 text-amber-800') +
+      statCard('#results', 'Subjects', sum ? sum.count : '—', sum ? TERM_NAMES[lt.term] : 'No results yet', 'text-slate-600', 'book', 'bg-navy-soft text-navy') +
+      statCard('#results', 'Average score', sum ? fmtScore(sum.avg) : '—', sum ? 'Grade ' + sum.grade + ' overall' : 'No results yet', 'text-navy', 'results', 'bg-gold-soft text-gold-ink') +
+      '</section>';
+  }
+
+  let annHtml = '';
+  if (state.errors.announcements) annHtml = '<p class="py-4 text-sm text-slate-600">Announcements could not be loaded.</p>';
+  else if (!latest.length) annHtml = '<p class="py-4 text-sm text-slate-600 border-t border-slate-100">No announcements yet.</p>';
+  else annHtml = latest.map((n) => {
+    const d = new Date(n.created_at);
+    return '<a href="#announcements" class="flex gap-4 py-3 lg:py-4 border-t border-slate-100 text-ink">' +
+      '<div class="hidden lg:flex flex-none w-14 h-14 rounded-xl bg-navy-tint text-navy flex-col items-center justify-center"><span class="font-display font-extrabold text-xl leading-none">' + d.getDate() + '</span><span class="text-xs font-semibold">' + d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() + '</span></div>' +
+      '<div class="min-w-0"><div class="flex gap-2 items-center mb-1"><span class="text-xs font-semibold text-slate-600">' + formatDate(n.created_at) + '</span>' + (isNew(n) ? '<span class="px-2 py-0.5 rounded-full bg-gold text-ink text-[11px] font-bold">New</span>' : '') + '</div>' +
+      '<div class="font-semibold text-[15px] leading-snug">' + escapeHtml(n.title) + '</div>' +
+      '<div class="hidden lg:block text-sm text-slate-600 leading-normal clamp2 mt-0.5">' + escapeHtml(n.body) + '</div></div></a>';
+  }).join('');
+
+  let todayHtml;
+  if (!day) todayHtml = '<p class="py-4 text-sm text-slate-600 border-t border-slate-100">No classes today. Enjoy your weekend.</p>';
+  else if (!cls) todayHtml = '<p class="py-4 text-sm text-slate-600 border-t border-slate-100">Your class has not been set yet.</p>';
+  else if (!today.length) todayHtml = '<p class="py-4 text-sm text-slate-600 border-t border-slate-100">No timetable published yet.</p>';
+  else todayHtml = today.map((p) => '<div class="flex gap-3 items-center py-2.5 border-t border-slate-100"><span class="flex-none w-24 text-[13px] text-slate-600 tnum">' + PERIOD_TIMES[p][0] + ' – ' + PERIOD_TIMES[p][1] + '</span><span class="text-sm font-semibold">' + escapeHtml(map[day][p]) + '</span></div>').join('');
+
+  html += '<div class="flex flex-col lg:flex-row gap-4 lg:gap-5 items-stretch lg:items-start">' +
+    '<section class="' + card + ' lg:flex-[2] min-w-0 px-4 lg:px-6 pt-1 lg:pt-4 pb-2 lg:pb-4">' +
+    '<div class="flex justify-between items-center"><h2 class="font-display font-bold text-[17px] lg:text-[19px]">Latest announcements</h2><a href="#announcements" class="inline-flex items-center min-h-[44px] text-sm font-semibold text-navy">View all</a></div>' + annHtml + '</section>' +
+    '<section class="' + card + ' lg:flex-1 min-w-0 px-4 lg:px-6 pt-1 lg:pt-4 pb-2 lg:pb-4">' +
+    '<div class="flex justify-between items-center"><h2 class="font-display font-bold text-[17px] lg:text-[19px]">Today\'s classes</h2><a href="#timetable" class="inline-flex items-center min-h-[44px] text-sm font-semibold text-navy">Timetable</a></div>' + todayHtml + '</section>' +
+    '</div>';
+  return html;
+}
+
+/* ---------- Results ---------- */
+function viewResults() {
+  if (state.errors.results) return pageHeader('Results', '') + errorState();
+  const lt = latestResultTerm();
+  const ui = state.ui;
+  if (!ui.resultsSession) { ui.resultsSession = lt ? lt.session : SCHOOL.currentSession; ui.resultsTerm = lt ? lt.term : SCHOOL.currentTerm; }
+  const sessions = [...new Set([SCHOOL.currentSession, ...state.results.map((r) => r.session)])].sort().reverse();
+  const rows = resultRows(ui.resultsSession, ui.resultsTerm);
+  const s = summarise(rows);
+
+  const picker = '<div class="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-3 mb-4 lg:mb-6">' +
+    '<div class="flex items-center gap-2.5"><label for="session-pick" class="text-sm font-semibold text-slate-600">Session</label>' +
+    '<select id="session-pick" data-change="session" class="field flex-1 lg:flex-none lg:w-[150px]" style="height:44px;padding:0 12px">' +
+    sessions.map((x) => '<option' + (x === ui.resultsSession ? ' selected' : '') + '>' + escapeHtml(x) + '</option>').join('') + '</select></div>' +
+    '<div role="group" aria-label="Term" class="grid grid-cols-3 lg:inline-grid p-1 rounded-xl bg-slate-200 gap-1">' +
+    [1, 2, 3].map((t) => '<button type="button" data-action="term" data-term="' + t + '" aria-pressed="' + (t === ui.resultsTerm) + '" class="min-h-[40px] lg:min-h-[36px] px-4 rounded-[9px] text-sm ' + (t === ui.resultsTerm ? 'bg-white text-navy font-semibold shadow-sm' : 'text-slate-600 font-medium') + '">' + TERM_NAMES[t] + '</button>').join('') +
+    '</div></div>';
+
+  const sub = escapeHtml(fullName()) + (className() ? ' · ' + escapeHtml(className()) : '');
+  let html = pageHeader('Results', sub) + picker;
+
+  if (!s) return html + emptyState('No results published yet', 'Results for ' + termLabel(ui.resultsTerm, escapeHtml(ui.resultsSession)) + ' will appear here once the school publishes them.', 'results');
+
+  html += '<section class="grid grid-cols-3 lg:grid-cols-4 gap-2 lg:gap-4 mb-4 lg:mb-6">' +
+    '<div class="bg-navy text-white rounded-2xl p-4 lg:p-5"><div class="text-xs lg:text-sm text-indigo-200">Term average</div><div class="font-display font-extrabold text-[26px] lg:text-[34px]">' + fmtScore(s.avg) + '<span class="text-base lg:text-lg text-indigo-200">%</span></div></div>' +
+    '<div class="' + card + ' p-4 lg:p-5"><div class="text-xs lg:text-sm text-slate-600">Overall grade</div><div class="font-display font-extrabold text-[26px] lg:text-[34px] ' + (s.grade === 'A' ? 'text-green-700' : s.grade === 'F' ? 'text-red-700' : 'text-navy') + '">' + s.grade + '</div></div>' +
+    '<div class="' + card + ' p-4 lg:p-5"><div class="text-xs lg:text-sm text-slate-600">Total marks</div><div class="font-display font-extrabold text-[26px] lg:text-[34px]">' + fmtScore(s.sum) + '<span class="hidden lg:inline text-lg text-slate-600"> / ' + s.count * 100 + '</span></div></div>' +
+    '<div class="hidden lg:block ' + card + ' p-5"><div class="text-sm text-slate-600">Subjects</div><div class="font-display font-extrabold text-[34px]">' + s.count + '</div></div>' +
+    '</section>';
+
+  // Desktop table
+  const cols = 'grid grid-cols-[minmax(0,2.2fr)_repeat(4,minmax(0,1fr))_minmax(0,1.4fr)] items-center';
+  html += '<section class="hidden lg:block ' + card + ' overflow-hidden">' +
+    '<div class="px-6 py-5 flex flex-wrap gap-2 justify-between items-center border-b border-slate-200"><h2 class="font-display font-bold text-lg">' + termLabel(ui.resultsTerm, escapeHtml(ui.resultsSession)) + '</h2><span class="text-[13px] text-slate-600">Total = CA (40) + Exam (60)</span></div>' +
+    '<div class="overflow-x-auto"><div role="table" aria-label="Results" class="min-w-[640px] text-[15px]">' +
+    '<div role="row" class="' + cols + ' bg-page text-slate-600 text-[13px] font-semibold"><div role="columnheader" class="px-6 py-3">Subject</div><div role="columnheader" class="px-2 py-3 text-center">CA (40)</div><div role="columnheader" class="px-2 py-3 text-center">Exam (60)</div><div role="columnheader" class="px-2 py-3 text-center">Total (100)</div><div role="columnheader" class="px-2 py-3 text-center">Grade</div><div role="columnheader" class="px-6 py-3">Remark</div></div>' +
+    rows.map((r) => '<div role="row" class="' + cols + ' border-t border-slate-100"><div role="cell" class="px-6 py-3 font-semibold">' + escapeHtml(r.subject) + '</div><div role="cell" class="px-2 py-3 text-center tnum">' + fmtScore(r.ca) + '</div><div role="cell" class="px-2 py-3 text-center tnum">' + fmtScore(r.exam) + '</div><div role="cell" class="px-2 py-3 text-center font-bold tnum">' + fmtScore(r.total) + '</div><div role="cell" class="px-2 py-3 text-center"><span class="inline-flex w-8 h-7 items-center justify-center rounded-lg font-bold ' + r.pill + '">' + r.grade + '</span></div><div role="cell" class="px-6 py-3 text-slate-600">' + r.remark + '</div></div>').join('') +
+    '<div role="row" class="' + cols + ' border-t-2 border-slate-200 bg-page"><div role="cell" class="px-6 py-3.5 font-bold">Term average</div><div role="cell" class="px-2 py-3.5 text-center text-slate-600 tnum">' + fmtScore(s.caAvg) + '</div><div role="cell" class="px-2 py-3.5 text-center text-slate-600 tnum">' + fmtScore(s.exAvg) + '</div><div role="cell" class="px-2 py-3.5 text-center font-extrabold text-navy tnum">' + fmtScore(s.avg) + '</div><div role="cell" class="px-2 py-3.5 text-center"><span class="inline-flex w-8 h-7 items-center justify-center rounded-lg font-bold ' + s.pill + '">' + s.grade + '</span></div><div role="cell" class="px-6 py-3.5 text-slate-600">' + s.remark + '</div></div>' +
+    '</div></div>' + gradeKey() + '</section>';
+
+  // Phone cards
+  html += '<section class="lg:hidden"><div class="flex justify-between items-baseline mb-2.5"><h2 class="font-display font-bold text-[17px]">' + s.count + ' subject' + (s.count === 1 ? '' : 's') + '</h2><span class="text-xs text-slate-600">CA (40) + Exam (60)</span></div><div class="flex flex-col gap-2">' +
+    rows.map((r) => '<div class="' + card + ' rounded-[14px] px-3.5 py-3 flex items-center gap-3"><div class="flex-1 min-w-0"><div class="font-semibold text-[15px]">' + escapeHtml(r.subject) + '</div><div class="text-[13px] text-slate-600 mt-0.5">CA ' + fmtScore(r.ca) + ' · Exam ' + fmtScore(r.exam) + '</div></div><div class="text-right"><div class="font-display font-extrabold text-xl">' + fmtScore(r.total) + '</div><div class="text-[11px] text-slate-600">' + r.remark + '</div></div><span class="flex-none inline-flex w-9 h-9 items-center justify-center rounded-[10px] font-extrabold ' + r.pill + '">' + r.grade + '</span></div>').join('') +
+    '</div><div class="mt-3 ' + card + ' rounded-[14px]">' + gradeKey() + '</div></section>';
+  return html;
+}
+function gradeKey() {
+  return '<div class="px-4 lg:px-6 py-3.5 lg:py-4 border-t lg:border-slate-200 border-transparent flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-slate-600">' +
+    [['A', '70–100'], ['B', '60–69'], ['C', '50–59'], ['D', '45–49'], ['E', '40–44'], ['F', '0–39']].map(([g, r]) => '<span><strong class="text-ink">' + g + '</strong> ' + r + '</span>').join('') + '</div>';
+}
+
+/* ---------- Attendance ---------- */
+function viewAttendance() {
+  if (state.errors.attendance) return pageHeader('Attendance', '') + errorState();
+  const a = termAttendance();
+  const sub = termLabel(SCHOOL.currentTerm, SCHOOL.currentSession);
+  let html = pageHeader('Attendance', sub, className() ? pill(escapeHtml(className())) : '');
+  if (!a.total) return html + emptyState('No attendance recorded yet', 'Your days present and absent for this term will show here once your class teacher starts marking the register.', 'attendance');
+
+  html += '<section class="bg-navy text-white rounded-[18px] p-5 mb-4 lg:hidden">' +
+    '<div class="text-[13px] text-indigo-200">Attendance this term</div><div class="font-display font-extrabold text-[40px] leading-tight">' + a.pct + '%</div>' +
+    '<div class="h-2 rounded-full bg-white/20 mt-3 mb-4"><div class="h-2 rounded-full bg-gold" style="width:' + a.pct + '%"></div></div>' +
+    '<div class="grid grid-cols-3 gap-2">' +
+    '<div class="bg-white text-ink rounded-xl px-3 py-2.5"><div class="text-xs text-slate-600">Present</div><div class="font-display font-extrabold text-[22px] text-green-700">' + a.present + '</div></div>' +
+    '<div class="bg-white text-ink rounded-xl px-3 py-2.5"><div class="text-xs text-slate-600">Absent</div><div class="font-display font-extrabold text-[22px] text-red-700">' + a.absent + '</div></div>' +
+    '<div class="bg-white text-ink rounded-xl px-3 py-2.5"><div class="text-xs text-slate-600">School days</div><div class="font-display font-extrabold text-[22px]">' + a.total + '</div></div></div></section>';
+
+  html += '<section class="hidden lg:grid grid-cols-4 gap-4 mb-6">' +
+    '<div class="bg-navy text-white rounded-2xl p-5"><div class="text-sm text-indigo-200">Attendance this term</div><div class="font-display font-extrabold text-[34px]">' + a.pct + '%</div><div class="h-2 rounded-full bg-white/20 mt-2.5"><div class="h-2 rounded-full bg-gold" style="width:' + a.pct + '%"></div></div></div>' +
+    '<div class="' + card + ' p-5"><div class="text-sm text-slate-600">Days present</div><div class="font-display font-extrabold text-[34px] text-green-700">' + a.present + '</div></div>' +
+    '<div class="' + card + ' p-5"><div class="text-sm text-slate-600">Days absent</div><div class="font-display font-extrabold text-[34px] text-red-700">' + a.absent + '</div></div>' +
+    '<div class="' + card + ' p-5"><div class="text-sm text-slate-600">School days so far</div><div class="font-display font-extrabold text-[34px]">' + a.total + '</div></div></section>';
+
+  // Calendar
+  const latest = a.rows[0].date.slice(0, 7);
+  const ui = state.ui;
+  if (!ui.attMonth) ui.attMonth = latest;
+  const [yy, mm] = ui.attMonth.split('-').map(Number);
+  const first = new Date(yy, mm - 1, 1), last = new Date(yy, mm, 0).getDate();
+  const byDate = {}; state.attendance.forEach((r) => { byDate[r.date] = r.status; });
+  const today = todayISO();
+  const cells = [];
+  for (let d = 1; d <= last; d++) {
+    const dt = new Date(yy, mm - 1, d), dow = dt.getDay();
+    if (dow === 0 || dow === 6) continue;
+    if (!cells.length) for (let i = 1; i < dow; i++) cells.push(null);
+    cells.push({ n: d, iso: toISODate(dt) });
+  }
+  while (cells.length % 5) cells.push(null);
+  const cellHtml = cells.map((c) => {
+    if (!c) return '<div></div>';
+    const st = byDate[c.iso], isToday = c.iso === today;
+    let cls = 'bg-white border border-slate-200 text-slate-500', label = '';
+    if (st === 'present') { cls = 'bg-green-100 text-green-900'; label = '<span class="hidden lg:inline">Present</span>'; }
+    else if (st === 'absent') { cls = 'bg-red-100 text-red-800'; label = 'Absent'; }
+    else if (c.iso > today) cls = 'bg-slate-100 text-slate-500';
+    if (isToday) { cls += ' ring-2 ring-inset ring-navy'; label = label || 'Today'; }
+    return '<div class="h-[52px] lg:h-16 rounded-[10px] lg:rounded-xl px-1 lg:px-2.5 py-1 lg:py-2 flex flex-col items-center lg:items-start justify-center lg:justify-between ' + cls + '"><span class="font-bold text-[15px]">' + c.n + '</span><span class="text-[10px] lg:text-xs font-semibold">' + label + '</span></div>';
+  }).join('');
+  const monthName = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const canNext = ui.attMonth < today.slice(0, 7);
+  const navBtn = (dir, enabled, lbl) => '<button type="button" data-action="month" data-dir="' + dir + '" aria-label="' + lbl + '" ' + (enabled ? '' : 'disabled') + ' class="w-11 h-11 rounded-[10px] border border-slate-200 bg-white flex items-center justify-center ' + (enabled ? 'text-navy hover:bg-navy-tint' : 'text-slate-300') + '">' + icon(dir < 0 ? 'left' : 'right', 18) + '</button>';
+
+  const absences = a.rows.filter((r) => r.status === 'absent');
+  html += '<div class="flex flex-col lg:flex-row gap-4 lg:gap-5 items-stretch lg:items-start">' +
+    '<section class="' + card + ' lg:flex-[2] min-w-0 p-3.5 lg:p-6">' +
+    '<div class="flex justify-between items-center mb-2.5 lg:mb-4">' + navBtn(-1, true, 'Previous month') + '<h2 class="font-display font-bold text-[17px] lg:text-[19px]">' + monthName + '</h2>' + navBtn(1, canNext, 'Next month') + '</div>' +
+    '<div class="grid grid-cols-5 gap-1.5 lg:gap-2 mb-1.5 lg:mb-2 text-xs lg:text-[13px] font-semibold text-slate-600 text-center"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div></div>' +
+    '<div class="grid grid-cols-5 gap-1.5 lg:gap-2">' + cellHtml + '</div>' +
+    '<div class="flex flex-wrap gap-x-4 lg:gap-x-5 gap-y-2 mt-3 lg:mt-[18px] text-xs lg:text-[13px] text-slate-600">' +
+    '<span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded bg-green-100 border border-green-300"></span>Present</span>' +
+    '<span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded bg-red-100 border border-red-300"></span>Absent</span>' +
+    '<span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded border-2 border-navy"></span>Today</span>' +
+    '<span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded bg-white border border-slate-200"></span>Not marked</span></div></section>' +
+    '<section class="' + card + ' lg:flex-1 min-w-0 p-4 lg:p-6">' +
+    '<h2 class="font-display font-bold text-[17px] lg:text-[19px] mb-1">Days absent (' + absences.length + ')</h2>' +
+    (absences.length ? '<p class="hidden lg:block text-sm text-slate-600 mb-3">This term, newest first</p>' + absences.map((r) => {
+      const d = new Date(r.date + 'T00:00:00');
+      return '<div class="flex gap-3 items-center py-2.5 lg:py-3 border-t border-slate-100"><span class="flex-none w-11 h-11 rounded-xl bg-red-100 text-red-700 flex flex-col items-center justify-center leading-none"><span class="font-extrabold text-base">' + d.getDate() + '</span><span class="text-[10px] font-bold">' + d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() + '</span></span><div class="font-semibold text-sm lg:text-[15px]">' + formatDate(r.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '</div></div>';
+    }).join('') : '<p class="text-sm text-slate-600 mt-2">No absences this term. Well done!</p>') +
+    '<p class="mt-4 px-3.5 py-3 rounded-[10px] bg-page text-[13px] leading-normal text-slate-600">Think a day is marked wrongly? Please speak to your class teacher.</p>' +
+    '</section></div>';
+  return html;
+}
+
+/* ---------- Fees ---------- */
+function viewFees() {
+  if (state.errors.fees) return pageHeader('Fees', '') + errorState();
+  const fee = currentFee();
+  const sub = termLabel(SCHOOL.currentTerm, SCHOOL.currentSession) + ' · ' + escapeHtml(fullName());
+  const note = '<div class="flex gap-2.5 lg:gap-3 items-start lg:items-center px-3.5 py-3 rounded-xl lg:rounded-[10px] bg-gold-soft text-sm leading-normal text-[#5C4300]">' + icon('info', 20, 'class="flex-none"') + 'To pay fees, please contact the school bursary.</div>';
+  const fs = fee ? feeStatus(fee) : null;
+  let html = pageHeader('Fees', sub, fs ? pill(fs.label, fs.pill) : '');
+
+  if (!fs) {
+    html += emptyState('No fees record yet for this term', 'Your amount due, payments and balance for ' + termLabel(SCHOOL.currentTerm, SCHOOL.currentSession) + ' will show here once the bursary adds them.', 'fees');
+  } else {
+    const pct = fs.due ? Math.min(100, Math.round((fs.paid / fs.due) * 100)) : 100;
+    html += '<section class="lg:hidden bg-navy text-white rounded-[18px] p-5 shadow-navy mb-3.5">' +
+      '<div class="flex justify-between items-center"><span class="text-sm text-indigo-200">Balance</span><span class="px-2.5 py-1 rounded-full text-xs font-bold ' + fs.pill + '">' + fs.label + '</span></div>' +
+      '<div class="font-display font-extrabold text-[38px] mt-1">' + formatNaira(fs.balance) + '</div>' +
+      '<div class="h-2 rounded-full bg-white/20 mt-4 mb-2"><div class="h-2 rounded-full bg-gold" style="width:' + pct + '%"></div></div><div class="text-[13px] text-indigo-200">' + pct + '% paid</div></section>' +
+      '<section class="lg:hidden grid grid-cols-2 gap-3 mb-3.5">' +
+      '<div class="' + card + ' p-4"><div class="text-[13px] text-slate-600">Amount due</div><div class="font-display font-extrabold text-[22px] mt-1">' + formatNaira(fs.due) + '</div></div>' +
+      '<div class="' + card + ' p-4"><div class="text-[13px] text-slate-600">Amount paid</div><div class="font-display font-extrabold text-[22px] mt-1 text-green-700">' + formatNaira(fs.paid) + '</div></div></section>' +
+      '<div class="lg:hidden mb-3.5">' + note + '</div>';
+
+    html += '<section class="hidden lg:grid grid-cols-3 gap-4 mb-6">' +
+      '<div class="' + card + ' p-[22px]"><div class="text-sm text-slate-600">Amount due</div><div class="font-display font-extrabold text-[32px] mt-1">' + formatNaira(fs.due) + '</div><div class="text-[13px] text-slate-600 mt-1">Total for ' + TERM_NAMES[SCHOOL.currentTerm] + '</div></div>' +
+      '<div class="' + card + ' p-[22px]"><div class="text-sm text-slate-600">Amount paid</div><div class="font-display font-extrabold text-[32px] mt-1 text-green-700">' + formatNaira(fs.paid) + '</div><div class="text-[13px] text-slate-600 mt-1">So far this term</div></div>' +
+      '<div class="bg-navy text-white rounded-2xl p-[22px] shadow-navy"><div class="text-sm text-indigo-200">Balance</div><div class="font-display font-extrabold text-[32px] mt-1">' + formatNaira(fs.balance) + '</div><div class="text-[13px] text-gold-light mt-1 font-semibold">Amount due minus amount paid</div></div></section>' +
+      '<section class="hidden lg:block ' + card + ' px-6 py-5 mb-6">' +
+      '<div class="flex justify-between text-sm mb-2.5"><span class="font-semibold">' + pct + '% paid</span><span class="text-slate-600">' + formatNaira(fs.paid) + ' of ' + formatNaira(fs.due) + '</span></div>' +
+      '<div class="h-3 rounded-full bg-slate-100"><div class="h-3 rounded-full bg-navy" style="width:' + pct + '%"></div></div><div class="mt-4">' + note + '</div></section>';
+  }
+
+  const history = [...state.fees].sort((a, b) => sortKey(b.session, b.term).localeCompare(sortKey(a.session, a.term)));
+  if (history.length) {
+    const cols = 'grid grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,1fr))_minmax(0,1fr)] items-center';
+    html += '<section class="hidden lg:block ' + card + ' overflow-hidden">' +
+      '<h2 class="font-display font-bold text-lg px-6 py-5 border-b border-slate-200">Fees history</h2>' +
+      '<div class="overflow-x-auto"><div role="table" aria-label="Fees history" class="min-w-[640px] text-[15px]">' +
+      '<div role="row" class="' + cols + ' bg-page text-slate-600 text-[13px] font-semibold"><div role="columnheader" class="px-6 py-3">Term</div><div role="columnheader" class="px-2 py-3 text-right">Amount due</div><div role="columnheader" class="px-2 py-3 text-right">Amount paid</div><div role="columnheader" class="px-2 py-3 text-right">Balance</div><div role="columnheader" class="px-6 py-3">Status</div></div>' +
+      history.map((f) => { const x = feeStatus(f); return '<div role="row" class="' + cols + ' border-t border-slate-100"><div role="cell" class="px-6 py-3.5 font-semibold">' + termLabel(f.term, escapeHtml(f.session)) + '</div><div role="cell" class="px-2 py-3.5 text-right tnum">' + formatNaira(x.due) + '</div><div role="cell" class="px-2 py-3.5 text-right tnum">' + formatNaira(x.paid) + '</div><div role="cell" class="px-2 py-3.5 text-right font-bold tnum">' + formatNaira(x.balance) + '</div><div role="cell" class="px-6 py-3.5"><span class="px-2.5 py-1 rounded-full text-xs font-bold ' + x.pill + '">' + x.label + '</span></div></div>'; }).join('') +
+      '</div></div></section>';
+    html += '<section class="lg:hidden ' + card + ' px-4 pt-4 pb-1"><h2 class="font-display font-bold text-[17px] mb-1.5">Fees history</h2>' +
+      history.map((f) => { const x = feeStatus(f); return '<div class="py-3 border-t border-slate-100"><div class="flex justify-between items-center"><span class="font-semibold text-[15px]">' + termLabel(f.term, escapeHtml(f.session)) + '</span><span class="font-display font-extrabold text-[17px]">' + formatNaira(x.balance) + '</span></div><div class="flex justify-between items-center mt-1 gap-2"><span class="text-[13px] text-slate-600">Due ' + formatNaira(x.due) + ' · Paid ' + formatNaira(x.paid) + '</span><span class="flex-none px-2 py-0.5 rounded-full text-[11px] font-bold ' + x.pill + '">' + x.label + '</span></div></div>'; }).join('') + '</section>';
+  }
+  return html;
+}
+
+/* ---------- Timetable ---------- */
+function viewTimetable() {
+  if (state.errors.timetable) return pageHeader('Timetable', '') + errorState();
+  const cls = className();
+  const day = todayWeekday();
+  let html = pageHeader('Timetable', (cls ? escapeHtml(cls) + ' · ' : '') + 'weekly class timetable, ' + termLabel(SCHOOL.currentTerm, SCHOOL.currentSession), day ? pill('Today: ' + day) : '');
+  if (!cls) return html + emptyState('Your class has not been set yet', 'Please contact the school office so they can add you to your class. Your timetable will then appear here.', 'timetable');
+  if (!state.timetable.length) return html + emptyState('No timetable published yet', 'The timetable for ' + escapeHtml(cls) + ' will appear here once the school publishes it.', 'timetable');
+
+  const map = timetableMap();
+  const rows = [];
+  for (let p = 1; p <= 8; p++) {
+    const br = BREAKS.find((b) => b.before === p);
+    if (br) rows.push({ band: br });
+    rows.push({ period: p });
+  }
+
+  // Desktop grid
+  const gcols = 'grid grid-cols-[104px_repeat(5,minmax(0,1fr))] gap-1.5';
+  html += '<section class="hidden lg:block ' + card + ' p-4 overflow-x-auto"><div class="min-w-[820px] flex flex-col gap-1.5">' +
+    '<div class="' + gcols + ' text-[13px] font-bold text-slate-600"><div class="p-2">Time</div>' +
+    WEEKDAYS.map((d) => d === day ? '<div class="p-2 rounded-lg bg-navy text-white text-center">' + d + ' · Today</div>' : '<div class="p-2 text-center">' + d + '</div>').join('') + '</div>' +
+    rows.map((r) => {
+      if (r.band) return '<div class="grid grid-cols-[104px_minmax(0,1fr)] gap-1.5 items-center"><div class="px-2 text-xs text-slate-600 tnum">' + r.band.time + '</div><div class="h-[34px] rounded-lg bg-page border border-dashed border-slate-300 flex items-center justify-center text-[13px] font-semibold text-slate-600 tracking-wide">' + r.band.label + '</div></div>';
+      const t = PERIOD_TIMES[r.period];
+      return '<div class="' + gcols + '"><div class="p-2 text-[13px] text-slate-700 tnum"><div class="font-bold">Period ' + r.period + '</div><div class="text-xs text-slate-600">' + t[0] + ' – ' + t[1] + '</div></div>' +
+        WEEKDAYS.map((d) => { const s = map[d] && map[d][r.period]; return s ? '<div class="min-h-[58px] rounded-[10px] px-2.5 py-2 ' + tint(s) + '"><div class="font-semibold text-[13px] leading-snug">' + escapeHtml(s) + '</div></div>' : '<div class="min-h-[58px] rounded-[10px] border border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">Free</div>'; }).join('') + '</div>';
+    }).join('') + '</div></section>';
+
+  // Phone: one day at a time
+  const ui = state.ui;
+  if (!ui.ttDay) ui.ttDay = day || 'Monday';
+  html += '<div class="lg:hidden -mx-4 -mt-4 mb-4 bg-white border-b border-slate-200 px-3 py-2.5 grid grid-cols-5 gap-1.5" role="group" aria-label="Day">' +
+    WEEKDAYS.map((d) => { const on = d === ui.ttDay; return '<button type="button" data-action="ttday" data-day="' + d + '" aria-pressed="' + on + '" class="min-h-[52px] rounded-xl flex flex-col items-center justify-center text-sm ' + (on ? 'bg-navy text-white font-bold' : 'bg-white border border-slate-200 text-slate-700 font-semibold') + '">' + d.slice(0, 3) + '<span class="text-[11px] ' + (on ? 'text-gold-light' : 'text-slate-500') + '">' + (d === day ? 'Today' : '') + '</span></button>'; }).join('') + '</div>' +
+    '<section class="lg:hidden flex flex-col gap-2"><h2 class="font-display font-bold text-lg mb-1.5">' + ui.ttDay + (ui.ttDay === day ? ' · Today' : '') + '</h2>' +
+    rows.map((r) => {
+      if (r.band) return '<div class="flex gap-3 items-center"><span class="flex-none w-[82px] text-xs text-slate-600">' + r.band.time + '</span><div class="flex-1 h-8 rounded-lg border border-dashed border-slate-300 bg-page flex items-center justify-center text-xs font-bold text-slate-600 tracking-wide">' + r.band.label + '</div></div>';
+      const t = PERIOD_TIMES[r.period], s = map[ui.ttDay] && map[ui.ttDay][r.period];
+      return '<div class="flex gap-3 items-stretch"><div class="flex-none w-[82px] pt-2.5"><div class="text-[13px] font-bold">' + t[0] + '</div><div class="text-xs text-slate-600">to ' + t[1] + '</div></div>' +
+        (s ? '<div class="flex-1 min-w-0 rounded-xl px-3.5 py-2.5 ' + tint(s) + '"><div class="font-bold text-[15px]">' + escapeHtml(s) + '</div><div class="text-[13px] opacity-80 mt-0.5">Period ' + r.period + '</div></div>' : '<div class="flex-1 rounded-xl border border-dashed border-slate-200 px-3.5 py-2.5 text-sm text-slate-500 flex items-center">Free period</div>') + '</div>';
+    }).join('') + '</section>';
+  return html;
+}
+
+/* ---------- Announcements ---------- */
+function viewAnnouncements() {
+  if (state.errors.announcements) return pageHeader('Announcements', '') + errorState();
+  const list = state.announcements;
+  const newCount = list.filter(isNew).length;
+  let html = pageHeader('Announcements', 'School notices, newest first', newCount ? pill(newCount + ' new this week', 'bg-gold-soft text-gold-ink font-bold') : '');
+  if (!list.length) return html + emptyState('No announcements yet', 'School notices will appear here as soon as they are posted.', 'announcements');
+
+  html += '<div class="flex flex-col gap-2.5 lg:gap-3.5 max-w-[860px]">' + list.map((n) => {
+    const d = new Date(n.created_at), open = state.ui.expanded.has(n.id);
+    return '<article class="' + card + ' px-4 lg:px-6 py-3.5 lg:py-5 flex gap-5">' +
+      '<div class="hidden lg:flex flex-none w-16 h-16 rounded-[14px] bg-navy-tint text-navy flex-col items-center justify-center"><span class="font-display font-extrabold text-[22px] leading-none">' + d.getDate() + '</span><span class="text-xs font-bold mt-0.5">' + d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() + '</span></div>' +
+      '<div class="flex-1 min-w-0"><div class="flex flex-wrap gap-2 items-center mb-1.5">' +
+      (isNew(n) ? '<span class="px-2.5 py-0.5 rounded-full bg-gold text-ink text-xs font-bold">New</span>' : '') +
+      '<span class="text-xs lg:text-[13px] font-semibold lg:font-normal text-slate-600">' + formatDate(n.created_at, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '</span></div>' +
+      '<h2 class="font-display font-bold text-base lg:text-lg leading-snug mb-1 lg:mb-1.5">' + escapeHtml(n.title) + '</h2>' +
+      '<p class="text-sm lg:text-[15px] leading-relaxed text-slate-700 whitespace-pre-line ' + (open ? '' : 'clamp2m') + '">' + escapeHtml(n.body) + '</p>' +
+      '<button type="button" data-action="expand" data-id="' + n.id + '" aria-expanded="' + open + '" class="lg:hidden mt-1 min-h-[36px] text-sm font-semibold text-navy">' + (open ? 'Show less' : 'Read more') + '</button>' +
+      '</div></article>';
+  }).join('') + '</div>';
+  return html;
+}
+
+/* ---------- Profile ---------- */
+function viewProfile() {
+  const p = state.profile || {};
+  const fields = [
+    ['Full name', fullName()],
+    ['Admission number', p.admission_number || 'Not set'],
+    ['Class', className() || 'Not set'],
+    ['Parent phone number', p.parent_phone || 'Not set'],
+    ['Email', state.user.email],
+    ['Current session', termLabel(SCHOOL.currentTerm, SCHOOL.currentSession)]
+  ];
+  const roleName = { student: 'Student', teacher: 'Teacher', admin: 'Admin' }[state.role] || 'Student';
+  const pw = state.ui.pwOpen
+    ? '<form id="pw-form" class="flex flex-col gap-3 mt-1" novalidate>' +
+      '<div><label for="pw1" class="block text-sm font-semibold mb-1.5">New password</label><input id="pw1" type="password" autocomplete="new-password" class="field"></div>' +
+      '<div><label for="pw2" class="block text-sm font-semibold mb-1.5">Confirm new password</label><input id="pw2" type="password" autocomplete="new-password" class="field"></div>' +
+      (state.ui.pwMsg ? '<p class="text-sm font-medium ' + (state.ui.pwMsg.ok ? 'text-green-700' : 'text-red-700') + '" role="status">' + escapeHtml(state.ui.pwMsg.text) + '</p>' : '') +
+      '<div class="flex gap-2"><button type="submit" class="flex-1 min-h-[48px] rounded-xl bg-navy text-white font-semibold text-[15px]">Save password</button><button type="button" data-action="pw-cancel" class="min-h-[48px] px-4 rounded-xl border border-slate-200 font-semibold text-[15px] text-slate-700">Cancel</button></div></form>'
+    : (state.ui.pwMsg && state.ui.pwMsg.ok ? '<p class="text-sm font-medium text-green-700" role="status">' + escapeHtml(state.ui.pwMsg.text) + '</p>' : '') +
+      '<button type="button" data-action="pw-open" class="flex items-center justify-center lg:justify-start gap-2.5 min-h-[52px] lg:min-h-[48px] px-4 rounded-xl border-[1.5px] border-navy bg-white text-navy font-semibold text-base lg:text-[15px]">' + icon('lock', 18) + 'Change password</button>';
+
+  return pageHeader('Profile', 'Your details as the school holds them') +
+    '<div class="flex flex-col lg:flex-row gap-3.5 lg:gap-5 items-stretch lg:items-start max-w-[980px]">' +
+    '<section class="' + card + ' lg:flex-[2] min-w-0 overflow-hidden">' +
+    '<div class="bg-navy text-white p-[22px] lg:p-7 flex flex-col lg:flex-row items-center gap-3 lg:gap-5 text-center lg:text-left">' +
+    '<div class="flex-none w-[76px] h-[76px] lg:w-20 lg:h-20 rounded-full bg-gold text-ink flex items-center justify-center font-display font-extrabold text-[26px] lg:text-[28px] border-4 border-white/30">' + escapeHtml(initials(fullName())) + '</div>' +
+    '<div><h2 class="font-display font-extrabold text-[21px] lg:text-2xl mb-2">' + escapeHtml(fullName()) + '</h2><div class="flex flex-wrap gap-2 justify-center lg:justify-start">' +
+    (className() ? '<span class="px-2.5 py-1 rounded-full bg-gold text-ink text-[13px] font-semibold">' + escapeHtml(className()) + '</span>' : '') +
+    '<span class="px-2.5 py-1 rounded-full bg-white/15 text-[13px] font-semibold">' + roleName + '</span></div></div></div>' +
+    '<dl class="px-4 lg:px-7 pt-1 lg:pt-2 pb-2 lg:pb-4">' +
+    fields.map(([k, v]) => '<div class="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] gap-4 py-3 lg:py-3.5 border-b border-slate-100"><dt class="text-[13px] lg:text-sm text-slate-600 mb-0.5 lg:mb-0">' + k + '</dt><dd class="text-base lg:text-[15px] font-semibold break-words">' + escapeHtml(v) + '</dd></div>').join('') + '</dl>' +
+    '<div class="mx-4 lg:mx-7 mb-4 lg:mb-6 flex gap-2.5 items-start px-3.5 py-3 rounded-[10px] bg-page text-[13px] lg:text-sm leading-normal text-slate-600">' + icon('info', 20, 'class="flex-none"') + 'To correct any detail, please contact the school office.</div>' +
+    '</section>' +
+    '<section class="lg:flex-1 min-w-0 lg:bg-white lg:border lg:border-slate-200 lg:rounded-2xl lg:shadow-card lg:p-6 flex flex-col gap-3">' +
+    '<h2 class="hidden lg:block font-display font-bold text-lg mb-1">Account</h2>' + pw +
+    '<button type="button" data-action="logout" class="flex items-center justify-center lg:justify-start gap-2.5 min-h-[52px] lg:min-h-[48px] px-4 rounded-xl bg-red-100 text-red-800 font-semibold text-base lg:text-[15px]">' + icon('logout', 18) + 'Log out</button>' +
+    '</section></div>';
+}
+
+/* ---------- Rendering ---------- */
+const RENDER = { dashboard: viewDashboard, results: viewResults, attendance: viewAttendance, fees: viewFees, timetable: viewTimetable, announcements: viewAnnouncements, profile: viewProfile };
+const currentView = () => { const v = location.hash.replace('#', ''); return RENDER[v] ? v : 'dashboard'; };
+
+function renderChrome(view) {
+  const order = ['dashboard', 'results', 'attendance', 'fees', 'timetable', 'announcements', 'profile'];
+  document.getElementById('side-nav').innerHTML = order.map((k) => {
+    const on = k === view;
+    return '<a href="#' + k + '"' + (on ? ' aria-current="page"' : '') + ' class="flex items-center gap-3 min-h-[44px] px-3 rounded-[10px] text-[15px] ' + (on ? 'bg-white/[0.14] text-white font-semibold' : 'text-slate-300 font-medium hover:bg-white/10 hover:text-white') + '">' +
+      icon(k, 20, on ? 'style="color:#D4A017"' : '') + VIEWS[k].label + '</a>';
+  }).join('');
+
+  document.getElementById('bottom-nav').innerHTML = BOTTOM_TABS.map((t) => {
+    const on = t.key === view || (t.group && t.group.includes(view));
+    return '<a href="#' + t.key + '"' + (on ? ' aria-current="page"' : '') + ' class="flex flex-col items-center justify-center gap-[3px] min-h-[52px] text-xs ' + (on ? 'text-navy font-bold' : 'text-slate-600 font-medium') + '">' +
+      '<span class="w-[52px] h-[30px] rounded-full flex items-center justify-center ' + (on ? 'bg-navy-soft' : '') + '">' + icon(t.icon, 20) + '</span>' + t.label + '</a>';
+  }).join('');
+
+  const more = document.getElementById('more-tabs');
+  const inMore = ['attendance', 'announcements', 'profile'].includes(view);
+  more.classList.toggle('hidden', !inMore);
+  more.innerHTML = MORE_TABS.map(([k, label]) => {
+    const on = k === view;
+    return '<a href="#' + k + '"' + (on ? ' aria-current="page"' : '') + ' class="flex items-center justify-center min-h-[46px] text-sm border-b-[3px] ' + (on ? 'font-bold text-navy border-navy' : 'font-medium text-slate-600 border-transparent') + '">' + label + '</a>';
+  }).join('');
+
+  const subs = {
+    dashboard: currentTermLabel(),
+    results: (className() ? className() + ' · ' : '') + (state.ui.resultsSession || SCHOOL.currentSession),
+    attendance: currentTermLabel(),
+    fees: currentTermLabel(),
+    timetable: (className() ? className() + ' · ' : '') + TERM_NAMES[SCHOOL.currentTerm],
+    announcements: (() => { const c = state.announcements.filter(isNew).length; return c ? c + ' new this week' : 'School notices'; })(),
+    profile: 'Your school details'
+  };
+  document.getElementById('m-title').textContent = VIEWS[view].label;
+  document.getElementById('m-sub').textContent = subs[view];
+  document.querySelectorAll('[data-bind="initials"]').forEach((el) => { el.textContent = initials(fullName()); });
+  document.querySelectorAll('[data-bind="shortName"]').forEach((el) => { el.textContent = shortName(fullName()); });
+  document.querySelectorAll('[data-bind="className"]').forEach((el) => { el.textContent = className() || { student: 'Student', teacher: 'Teacher', admin: 'Admin' }[state.role]; });
+  document.title = VIEWS[view].label + ' — Crestfield College';
+}
+
+function render(scrollTop) {
+  const view = currentView();
+  renderChrome(view);
+  document.getElementById('view').innerHTML = RENDER[view]();
+  if (scrollTop) window.scrollTo(0, 0);
+}
+
+/* ---------- Events ---------- */
+window.addEventListener('hashchange', () => { state.ui.pwOpen = false; state.ui.pwMsg = null; render(true); });
+
+document.addEventListener('click', async (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const a = el.dataset.action;
+  if (a === 'logout') return signOut();
+  if (a === 'retry') { document.getElementById('view').innerHTML = '<p class="py-10 text-center text-sm text-slate-600">Loading…</p>'; await loadAll(); return render(); }
+  if (a === 'term') { state.ui.resultsTerm = Number(el.dataset.term); return render(); }
+  if (a === 'month') {
+    const [y, m] = state.ui.attMonth.split('-').map(Number);
+    const d = new Date(y, m - 1 + Number(el.dataset.dir), 1);
+    state.ui.attMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    return render();
+  }
+  if (a === 'ttday') { state.ui.ttDay = el.dataset.day; return render(); }
+  if (a === 'expand') { const id = el.dataset.id; state.ui.expanded.has(id) ? state.ui.expanded.delete(id) : state.ui.expanded.add(id); return render(); }
+  if (a === 'pw-open') { state.ui.pwOpen = true; state.ui.pwMsg = null; render(); const f = document.getElementById('pw1'); if (f) f.focus(); return; }
+  if (a === 'pw-cancel') { state.ui.pwOpen = false; state.ui.pwMsg = null; return render(); }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target.dataset.change === 'session') { state.ui.resultsSession = e.target.value; render(); }
+});
+
+document.addEventListener('submit', async (e) => {
+  if (e.target.id !== 'pw-form') return;
+  e.preventDefault();
+  const p1 = document.getElementById('pw1').value, p2 = document.getElementById('pw2').value;
+  if (p1.length < 8) { state.ui.pwMsg = { ok: false, text: 'Password must be at least 8 characters.' }; return render(); }
+  if (p1 !== p2) { state.ui.pwMsg = { ok: false, text: 'The two passwords do not match.' }; return render(); }
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  if (error) { state.ui.pwMsg = { ok: false, text: friendlyAuthError(error) }; return render(); }
+  state.ui.pwOpen = false;
+  state.ui.pwMsg = { ok: true, text: 'Your password has been changed.' };
+  render();
+});
+
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') window.location.replace('login.html');
+});
+
+/* ---------- Start ---------- */
+(async function start() {
+  mountCrests();
+  const user = await requireUser();
+  if (!user) return;
+  state.user = user;
+  await loadAll();
+  document.getElementById('boot').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  mountCrests();
+  render();
+})();
+</script>
+</body>
+</html>

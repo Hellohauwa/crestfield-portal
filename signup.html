@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign up — Crestfield College</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    .field{width:100%;height:48px;padding:0 14px;border:1.5px solid #CBD5E1;border-radius:10px;font:16px Inter,sans-serif;color:#0F172A;background:#fff}
+    .field:focus{outline:3px solid #BFDBFE;border-color:#1E3A8A}
+    .field[aria-invalid="true"]{border-color:#B91C1C}
+    .err{margin-top:6px;font-size:13px;font-weight:500;color:#B91C1C}
+  </style>
+</head>
+<body class="bg-page font-sans text-ink antialiased">
+<div class="min-h-screen flex flex-col lg:flex-row">
+
+  <aside class="bg-navy text-white px-6 pt-8 pb-14 lg:p-14 lg:basis-[380px] lg:flex-1 lg:max-w-[540px] flex flex-col gap-6 lg:gap-10">
+    <a href="index.html" class="flex items-center gap-2.5 lg:gap-3 text-white">
+      <span data-crest="32" class="inline-flex lg:hidden"></span>
+      <span data-crest="44" class="hidden lg:inline-flex"></span>
+      <span class="font-display font-extrabold text-[17px] lg:text-[22px]">Crestfield College</span>
+    </a>
+    <div>
+      <h1 class="font-display font-extrabold text-[26px] lg:text-[40px] leading-[1.12] mb-1.5 lg:mb-4">Create your student account<span class="hidden lg:inline">.</span></h1>
+      <p class="text-[15px] lg:text-[17px] leading-relaxed text-indigo-200 lg:mb-8"><span class="lg:hidden">For Crestfield College students only.</span><span class="hidden lg:inline">Sign up once and check your school record any time.</span></p>
+      <ol class="hidden lg:flex flex-col gap-3.5 text-[15px]">
+        <li class="flex gap-3 items-center"><span class="flex-none w-7 h-7 rounded-full bg-gold text-ink flex items-center justify-center font-bold text-sm">1</span>Fill in your details as the school has them</li>
+        <li class="flex gap-3 items-center"><span class="flex-none w-7 h-7 rounded-full bg-gold text-ink flex items-center justify-center font-bold text-sm">2</span>Confirm your email address</li>
+        <li class="flex gap-3 items-center"><span class="flex-none w-7 h-7 rounded-full bg-gold text-ink flex items-center justify-center font-bold text-sm">3</span>Log in and see your dashboard</li>
+      </ol>
+    </div>
+    <p class="hidden lg:block mt-auto text-sm text-indigo-200">Teachers and staff: your account is created by the school office.</p>
+  </aside>
+
+  <main class="flex-1 lg:flex-[999_1_560px] min-w-0 flex flex-col items-center lg:justify-center px-4 lg:px-6 lg:py-12">
+    <form id="signup-form" class="w-full max-w-[600px] -mt-7 lg:mt-0 bg-white border border-slate-200 rounded-[20px] p-[22px] lg:p-10 shadow-lift" novalidate>
+      <h2 class="hidden lg:block font-display font-bold text-[28px] mb-1.5">Sign up</h2>
+      <p class="hidden lg:block text-[15px] text-slate-600 mb-7">For Crestfield College students only.</p>
+
+      <div class="grid grid-cols-2 gap-x-3 lg:gap-x-4 gap-y-4 lg:gap-y-[18px]">
+        <div class="col-span-2">
+          <label for="full_name" class="block text-sm font-semibold mb-1.5">Full name</label>
+          <input id="full_name" autocomplete="name" required class="field" placeholder="e.g. Adaeze Chiamaka Okafor">
+          <p class="err hidden" data-err="full_name"></p>
+        </div>
+        <div>
+          <label for="admission_number" class="block text-sm font-semibold mb-1.5"><span class="lg:hidden">Admission no.</span><span class="hidden lg:inline">Admission number</span></label>
+          <input id="admission_number" required class="field" placeholder="CFC/2024/0147" style="padding:0 12px">
+          <p class="err hidden" data-err="admission_number"></p>
+        </div>
+        <div>
+          <label for="class" class="block text-sm font-semibold mb-1.5">Class</label>
+          <select id="class" required class="field" style="padding:0 10px">
+            <option value="">Choose…</option>
+          </select>
+          <p class="err hidden" data-err="class"></p>
+        </div>
+        <div class="col-span-2">
+          <label for="parent_phone" class="block text-sm font-semibold mb-1.5">Parent or guardian phone<span class="hidden lg:inline"> number</span></label>
+          <input id="parent_phone" type="tel" autocomplete="tel" required class="field" placeholder="0803 456 7812">
+          <p class="err hidden" data-err="parent_phone"></p>
+        </div>
+        <div class="col-span-2">
+          <label for="email" class="block text-sm font-semibold mb-1.5">Email address</label>
+          <input id="email" type="email" autocomplete="email" required class="field">
+          <p class="err hidden" data-err="email"></p>
+        </div>
+        <div class="col-span-2 lg:col-span-1">
+          <label for="password" class="block text-sm font-semibold mb-1.5">Password</label>
+          <input id="password" type="password" autocomplete="new-password" required minlength="8" class="field">
+          <p class="mt-1.5 text-[13px] text-slate-600">At least 8 characters</p>
+          <p class="err hidden" data-err="password"></p>
+        </div>
+        <div class="col-span-2 lg:col-span-1">
+          <label for="password2" class="block text-sm font-semibold mb-1.5">Confirm password</label>
+          <input id="password2" type="password" autocomplete="new-password" required class="field">
+          <p class="err hidden" data-err="password2"></p>
+        </div>
+      </div>
+
+      <p id="form-error" class="hidden mt-5 text-sm font-medium text-red-700" role="alert"></p>
+      <div id="form-success" class="hidden mt-5 rounded-[10px] px-3.5 py-3 text-sm bg-green-50 text-green-800" role="status"></div>
+      <button type="submit" id="signup-btn" class="mt-6 lg:mt-7 w-full flex items-center justify-center min-h-[52px] rounded-xl bg-navy text-white font-semibold text-base hover:bg-navy-dark disabled:opacity-60">Create account</button>
+      <p class="hidden lg:block mt-6 text-center text-[15px] text-slate-600">Already have an account? <a href="login.html" class="font-semibold text-navy hover:underline">Log in</a></p>
+    </form>
+
+    <p class="lg:hidden mt-6 text-center text-[15px] text-slate-600">Already have an account? <a href="login.html" class="font-semibold text-navy">Log in</a></p>
+    <p class="lg:hidden mt-3 mb-6 px-6 text-center text-[13px] leading-relaxed text-slate-500">Teachers and staff: your account is created by the school office.</p>
+  </main>
+</div>
+
+<script>
+  mountCrests();
+  redirectIfLoggedIn();
+
+  const classSelect = document.getElementById('class');
+  CLASS_OPTIONS.forEach((c) => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    classSelect.appendChild(o);
+  });
+
+  const $ = (id) => document.getElementById(id);
+  function setFieldError(id, text) {
+    const input = $(id), p = document.querySelector('[data-err="' + id + '"]');
+    input.setAttribute('aria-invalid', text ? 'true' : 'false');
+    p.textContent = text || '';
+    p.classList.toggle('hidden', !text);
+  }
+
+  $('signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = {
+      full_name: $('full_name').value.trim().replace(/\s+/g, ' '),
+      admission_number: $('admission_number').value.trim().toUpperCase(),
+      class: classSelect.value,
+      parent_phone: $('parent_phone').value.trim(),
+      email: $('email').value.trim(),
+      password: $('password').value,
+      password2: $('password2').value
+    };
+
+    const errors = {
+      full_name: v.full_name.split(' ').length < 2 ? 'Please enter your first name and surname.' : '',
+      admission_number: !v.admission_number ? 'Please enter your admission number.' : '',
+      class: !v.class ? 'Please choose your class.' : '',
+      parent_phone: v.parent_phone.replace(/\D/g, '').length < 10 ? 'Please enter a valid phone number.' : '',
+      email: !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email) ? 'Please enter a valid email address.' : '',
+      password: v.password.length < 8 ? 'Password must be at least 8 characters.' : '',
+      password2: v.password2 !== v.password ? 'The two passwords do not match.' : ''
+    };
+    Object.entries(errors).forEach(([k, msg]) => setFieldError(k, msg));
+    const firstBad = Object.keys(errors).find((k) => errors[k]);
+    $('form-error').classList.add('hidden');
+    if (firstBad) { $(firstBad).focus(); return; }
+
+    const btn = $('signup-btn');
+    btn.disabled = true; btn.textContent = 'Creating account…';
+
+    // The database turns this metadata into the profile and gives the student role.
+    const { data, error } = await sb.auth.signUp({
+      email: v.email,
+      password: v.password,
+      options: {
+        emailRedirectTo: pageUrl('login.html'),
+        data: {
+          full_name: v.full_name,
+          admission_number: v.admission_number,
+          class: v.class,
+          parent_phone: v.parent_phone
+        }
+      }
+    });
+
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Create account';
+      const msg = friendlyAuthError(error);
+      if (/admission number/i.test(msg)) { setFieldError('admission_number', msg); $('admission_number').focus(); return; }
+      $('form-error').textContent = msg;
+      $('form-error').classList.remove('hidden');
+      return;
+    }
+
+    // Supabase hides existing accounts by returning a user with no identities
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      btn.disabled = false; btn.textContent = 'Create account';
+      setFieldError('email', 'An account with this email already exists. Please log in.');
+      return;
+    }
+
+    if (data.session) {
+      window.location.replace('portal.html');
+    } else {
+      window.location.replace('login.html?signed_up=1');
+    }
+  });
+</script>
+</body>
+</html>

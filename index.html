@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crestfield College — Student Portal</title>
+  <meta name="description" content="Crestfield College student portal. Check your results, attendance, fees and class timetable.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body class="bg-page font-sans text-ink antialiased">
+
+  <header class="bg-white border-b border-slate-200">
+    <div class="max-w-[1180px] mx-auto px-5 sm:px-8 py-3.5 sm:py-[18px] flex items-center justify-between gap-4">
+      <a href="index.html" class="flex items-center gap-2.5 sm:gap-3 no-underline">
+        <span data-crest="40" class="hidden sm:inline-flex"></span>
+        <span data-crest="32" class="inline-flex sm:hidden"></span>
+        <span>
+          <span class="block font-display font-extrabold text-[17px] sm:text-xl text-navy leading-tight">Crestfield College</span>
+          <span class="hidden sm:block text-[13px] text-slate-600">Private Secondary School · JSS1 to SS3</span>
+        </span>
+      </a>
+      <nav class="flex items-center gap-3">
+        <a href="login.html" id="nav-login" class="inline-flex items-center min-h-[44px] px-4 sm:px-5 rounded-[10px] border-[1.5px] border-navy text-navy font-semibold text-sm sm:text-[15px] hover:bg-navy-tint">Log in</a>
+        <a href="signup.html" class="hidden sm:inline-flex items-center min-h-[44px] px-5 rounded-[10px] bg-navy text-white font-semibold text-[15px] hover:bg-navy-dark">Sign up</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="max-w-[1180px] mx-auto px-5 sm:px-8 pt-9 pb-7 sm:pt-[72px] sm:pb-14 flex flex-wrap items-center gap-8 lg:gap-14">
+      <div class="flex-1 basis-[420px] min-w-0">
+        <span class="inline-block px-3 py-1.5 rounded-full bg-gold-soft text-gold-ink text-[13px] font-semibold mb-4 sm:mb-5">Student Portal<span class="sm:hidden"> · JSS1 to SS3</span></span>
+        <h1 class="font-display font-extrabold text-[34px] sm:text-[52px] leading-[1.1] tracking-tight mb-4 sm:mb-5">Your school record, all in one place.</h1>
+        <p class="text-base sm:text-lg leading-relaxed text-slate-700 mb-6 sm:mb-8 max-w-[520px]">Welcome to the Crestfield College student portal. Check your results, attendance, fees and class timetable at any time, right from your phone.</p>
+        <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 sm:gap-4">
+          <a href="login.html" id="hero-login" class="inline-flex items-center justify-center min-h-[52px] px-7 rounded-xl bg-navy text-white font-semibold text-base shadow-[0_6px_16px_rgba(30,58,138,0.25)] hover:bg-navy-dark">Log in to portal</a>
+          <a href="signup.html" class="inline-flex items-center justify-center min-h-[52px] px-6 rounded-xl bg-gold text-ink font-semibold text-base hover:brightness-95">New student? Sign up</a>
+        </div>
+      </div>
+
+      <div class="flex-1 basis-[420px] min-w-0 flex justify-center" aria-hidden="true">
+        <div class="w-full max-w-[460px] bg-navy rounded-[20px] sm:rounded-3xl p-5 sm:p-7 text-white shadow-[0_24px_48px_rgba(15,23,42,0.18)]">
+          <div class="flex justify-between items-center mb-4 sm:mb-5">
+            <div>
+              <div class="text-[13px] text-indigo-200">Welcome back</div>
+              <div class="font-display font-bold text-[19px] sm:text-[22px]">Adaeze Okafor</div>
+            </div>
+            <span class="px-3 py-1.5 rounded-full bg-gold text-ink text-[13px] font-semibold">JSS3</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
+            <div class="bg-white text-ink rounded-xl sm:rounded-[14px] p-3.5 sm:p-4"><div class="text-xs sm:text-[13px] text-slate-600">Attendance</div><div class="font-display font-extrabold text-2xl sm:text-[28px] text-green-700">94%</div></div>
+            <div class="bg-white text-ink rounded-xl sm:rounded-[14px] p-3.5 sm:p-4"><div class="text-xs sm:text-[13px] text-slate-600">Average score</div><div class="font-display font-extrabold text-2xl sm:text-[28px] text-navy">74.5</div></div>
+            <div class="bg-white text-ink rounded-xl sm:rounded-[14px] p-3.5 sm:p-4 col-span-2"><div class="text-xs sm:text-[13px] text-slate-600">Fees balance · 1st Term</div><div class="font-display font-extrabold text-2xl sm:text-[28px]">₦50,500</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="max-w-[1180px] mx-auto px-5 sm:px-8 pb-9 sm:pb-[72px]">
+      <h2 class="font-display font-bold text-[22px] sm:text-[28px] mb-4 sm:mb-6">What you can do on the portal</h2>
+      <div class="grid gap-3.5 sm:gap-5 grid-cols-1 md:grid-cols-3">
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 sm:p-7 shadow-card flex md:block gap-3.5">
+          <div class="flex-none w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-navy-soft flex items-center justify-center md:mb-[18px]"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E3A8A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+          <div><h3 class="font-display font-bold text-[17px] sm:text-[19px] mb-1 sm:mb-2">Results every term</h3><p class="text-sm sm:text-[15px] leading-relaxed text-slate-600">See your CA and exam scores, totals and grades for every subject, term by term.</p></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 sm:p-7 shadow-card flex md:block gap-3.5">
+          <div class="flex-none w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gold-soft flex items-center justify-center md:mb-[18px]"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7A5A00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h15a3 3 0 013 3v7a3 3 0 01-3 3H3zM3 7V5a2 2 0 012-2h11M17 14h.01"/></svg></div>
+          <div><h3 class="font-display font-bold text-[17px] sm:text-[19px] mb-1 sm:mb-2">Attendance and fees</h3><p class="text-sm sm:text-[15px] leading-relaxed text-slate-600">Know your days present this term and your fees balance at a glance.</p></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 sm:p-7 shadow-card flex md:block gap-3.5">
+          <div class="flex-none w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-green-100 flex items-center justify-center md:mb-[18px]"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3 2M12 21a9 9 0 110-18 9 9 0 010 18z"/></svg></div>
+          <div><h3 class="font-display font-bold text-[17px] sm:text-[19px] mb-1 sm:mb-2">Timetable and notices</h3><p class="text-sm sm:text-[15px] leading-relaxed text-slate-600">Your weekly class timetable and the latest school announcements, always up to date.</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-ink text-slate-300">
+    <div class="max-w-[1180px] mx-auto px-5 sm:px-8 py-7 sm:py-10 flex flex-col sm:flex-row sm:flex-wrap sm:justify-between gap-2 sm:gap-8 text-sm leading-7">
+      <div>
+        <div class="font-display font-bold text-[17px] sm:text-lg text-white mb-1">Crestfield College</div>
+        <div id="school-address"></div>
+      </div>
+      <div>
+        <div>Phone: <span id="school-phone"></span></div>
+        <div>Email: <span id="school-email"></span></div>
+      </div>
+      <div class="sm:self-end text-slate-400">© <span id="year"></span> Crestfield College</div>
+    </div>
+  </footer>
+
+  <script>
+    mountCrests();
+    document.getElementById('school-address').textContent = SCHOOL.address;
+    document.getElementById('school-phone').textContent = SCHOOL.phone;
+    document.getElementById('school-email').textContent = SCHOOL.email;
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Already logged in? Point the buttons at the portal.
+    sb.auth.getSession().then(({ data }) => {
+      if (!data.session) return;
+      const nav = document.getElementById('nav-login');
+      nav.textContent = 'Open portal';
+      nav.href = 'portal.html';
+      const hero = document.getElementById('hero-login');
+      hero.textContent = 'Open my portal';
+      hero.href = 'portal.html';
+    });
+  </script>
+</body>
+</html>
