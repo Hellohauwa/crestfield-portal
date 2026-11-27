@@ -73,8 +73,8 @@
 
       <!-- Set a new password (opened from the reset email) -->
       <form id="reset-form" class="hidden bg-white border border-slate-200 rounded-[20px] p-6 lg:p-10 shadow-lift" novalidate>
-        <h2 class="font-display font-bold text-2xl lg:text-[28px] mb-1.5">Set a new password</h2>
-        <p class="text-[15px] text-slate-600 mb-6">Choose a password with at least 8 characters.</p>
+        <h2 id="reset-title" class="font-display font-bold text-2xl lg:text-[28px] mb-1.5">Set a new password</h2>
+        <p id="reset-sub" class="text-[15px] text-slate-600 mb-6">Choose a password with at least 8 characters.</p>
         <label for="new-password" class="block text-sm font-semibold mb-1.5">New password</label>
         <input id="new-password" type="password" autocomplete="new-password" required minlength="8" class="field mb-[18px]">
         <label for="confirm-new-password" class="block text-sm font-semibold mb-1.5">Confirm new password</label>
@@ -129,11 +129,18 @@
   }
 
   // Password-reset links land here with type=recovery
+  // Password-reset links (type=recovery) and teacher invite links (type=invite) both land here
   const isRecovery = /type=recovery/.test(window.location.hash);
+  const isInvite = /type=invite/.test(window.location.hash);
+  if (isInvite) {
+    document.getElementById('reset-title').textContent = 'Welcome to Crestfield College';
+    document.getElementById('reset-sub').textContent = 'You have been invited as a teacher. Choose a password with at least 8 characters to finish setting up your account.';
+    document.getElementById('reset-btn').textContent = 'Set password and continue';
+  }
   sb.auth.onAuthStateChange((event) => {
     if (event === 'PASSWORD_RECOVERY') showMode('reset');
   });
-  if (isRecovery) showMode('reset'); else redirectIfLoggedIn();
+  if (isRecovery || isInvite) showMode('reset'); else redirectIfLoggedIn();
 
   // Log in
   document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -181,8 +188,13 @@
     btn.disabled = true; btn.textContent = 'Saving…';
     const { error } = await sb.auth.updateUser({ password: pw });
     if (error) {
-      btn.disabled = false; btn.textContent = 'Save new password';
+      btn.disabled = false; btn.textContent = isInvite ? 'Set password and continue' : 'Save new password';
       return show(err, friendlyAuthError(error), 'text-red-700');
+    }
+    if (isInvite) {
+      // New teacher: stay logged in and go straight to their dashboard
+      window.location.replace(dashboardFor(await getRole()));
+      return;
     }
     await sb.auth.signOut();
     window.location.replace('login.html?reset=1');

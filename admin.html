@@ -46,7 +46,7 @@
       <div class="flex-1 min-w-0"><h1 id="m-title" class="font-display font-bold text-lg leading-tight"></h1><div id="m-sub" class="text-xs text-slate-600"></div></div>
       <button type="button" data-action="logout" aria-label="Log out" class="w-11 h-11 rounded-full bg-navy text-white flex items-center justify-center font-bold text-[15px]" data-bind="initials"></button>
     </header>
-    <div id="more-tabs" class="lg:hidden hidden bg-white border-b border-slate-200 px-2 grid grid-cols-2"></div>
+    <div id="more-tabs" class="lg:hidden hidden bg-white border-b border-slate-200 px-1 grid grid-cols-3"></div>
     <main id="view" class="flex-1 w-full max-w-[1120px] p-4 lg:px-10 lg:py-8 pb-28 lg:pb-8"></main>
   </div>
 
@@ -62,10 +62,11 @@ const ICON = {
   fees: 'M3 7h15a3 3 0 013 3v7a3 3 0 01-3 3H3zM3 7V5a2 2 0 012-2h11M17 14h.01',
   announcements: 'M3 11v2a1 1 0 001 1h3l7 4V6L7 10H4a1 1 0 00-1 1zM18 9a3 3 0 010 6',
   more: 'M4 6h16M4 12h16M4 18h16', info: 'M12 8v5M12 16h.01M12 21a9 9 0 110-18 9 9 0 010 18z',
-  search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-4.3-4.3', close: 'M6 6l12 12M18 6L6 18', promote: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6'
+  search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-4.3-4.3', close: 'M6 6l12 12M18 6L6 18', promote: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6',
+  invites: 'M3 6h18v12H3zM3 7l9 6 9-6'
 };
 const icon = (n, s, extra) => '<svg width="' + (s || 20) + '" height="' + (s || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ' + (extra || '') + '><path d="' + ICON[n] + '"/></svg>';
-const VIEWS = { dashboard: 'Dashboard', students: 'Students', teachers: 'Teachers', classes: 'Classes & Subjects', fees: 'Fees', announcements: 'Announcements' };
+const VIEWS = { dashboard: 'Dashboard', students: 'Students', teachers: 'Teachers', invites: 'Invite Teachers', classes: 'Classes & Subjects', fees: 'Fees', announcements: 'Announcements' };
 const BOTTOM = [['dashboard', 'Home', 'dashboard'], ['students', 'Students', 'students'], ['fees', 'Fees', 'fees'], ['announcements', 'Notices', 'announcements'], ['teachers', 'More', 'more']];
 const card = 'bg-white border border-slate-200 rounded-2xl shadow-card';
 const btnPrimary = 'min-h-[46px] px-5 rounded-xl bg-navy text-white font-semibold text-[15px] disabled:opacity-60';
@@ -82,6 +83,7 @@ const state = {
     cs: { editKind: null, editId: null, editVal: '', newClass: '', newSubject: '' },
     f: { q: '', cls: 'all', owing: false, sel: null, mode: null, amount: '', bulk: '' },
     n: { editId: null, title: '', body: '', confirm: null },
+    i: { name: '', email: '', cls: '', subj: [], list: null, loading: false, confirm: null },
     busy: false
   }
 };
@@ -205,7 +207,7 @@ function viewTeachers() {
   const list = teachers();
   let html = pageHeader('Teachers', list.length + ' teacher' + (list.length === 1 ? '' : 's') + ' · assign the classes and subjects each one teaches');
   if (state.error) return html + errorBox();
-  html += '<section class="' + card + ' p-4 lg:p-5 mb-3 lg:mb-5"><h2 class="font-display font-bold text-[17px] mb-1">Promote a user to teacher</h2><p class="text-[13px] text-slate-600 mb-3">The new teacher signs up first. Then enter the email they signed up with.</p>' +
+  html += '<section class="' + card + ' p-4 lg:p-5 mb-3 lg:mb-5"><div class="flex flex-wrap justify-between items-start gap-2"><h2 class="font-display font-bold text-[17px] mb-1">Promote a user to teacher</h2><a href="#invites" class="text-sm font-semibold text-navy">Invite a new teacher by email →</a></div><p class="text-[13px] text-slate-600 mb-3">For someone who already has an account. Enter the email they signed up with.</p>' +
     '<div class="flex flex-col sm:flex-row gap-2.5"><input type="email" data-input="t-email" value="' + escapeHtml(u.email) + '" placeholder="teacher@example.com" aria-label="Email of the user to promote" class="field flex-1"><button type="button" data-action="t-promote" class="' + btnPrimary + ' inline-flex items-center justify-center gap-2"' + (state.ui.busy ? ' disabled' : '') + '>' + icon('promote', 18) + 'Make teacher</button></div></section>';
   let left = '<section class="flex flex-col gap-2.5 lg:flex-[999_1_480px] min-w-0">';
   if (!list.length) left += '<div class="' + card + ' px-6 py-10 text-center text-sm text-slate-600">No teachers yet. Promote a user above.</div>';
@@ -268,6 +270,110 @@ async function removeAssignment(id) {
   const { error } = await sb.from('teacher_assignments').delete().eq('id', id);
   if (error) return toast(dbError('Not removed.', error), false);
   toast('Assignment removed.', true); await loadAll(); render();
+}
+
+/* ---------- Invite Teachers ---------- */
+// Calls the invite-teacher Edge Function (runs on Supabase with the service key; admins only)
+async function callInvite(action, payload) {
+  const { data, error } = await sb.functions.invoke('invite-teacher', { body: { action, redirectTo: pageUrl('login.html'), ...(payload || {}) } });
+  if (error) {
+    let msg = error.message;
+    try { const j = await error.context.json(); if (j && j.error) msg = j.error; } catch (_) {}
+    return { error: msg };
+  }
+  if (data && data.error) return { error: data.error };
+  return { data };
+}
+async function loadInvites() {
+  const ui = state.ui.i;
+  ui.loading = true;
+  const r = await callInvite('list');
+  ui.loading = false;
+  if (r.error) { ui.list = []; ui.listError = r.error; return; }
+  ui.listError = null; ui.list = r.data.teachers || [];
+}
+function viewInvites() {
+  const u = state.ui.i;
+  let html = pageHeader('Invite Teachers', 'Send new teachers an email invite, and manage everyone with the teacher role.');
+  if (state.error) return html + errorBox();
+  if (u.list === null && !u.loading) loadInvites().then(() => { if (currentView() === 'invites') render(); });
+
+  // Invite form
+  html += '<div class="flex flex-wrap gap-4 lg:gap-5 items-start">' +
+    '<section class="' + card + ' p-4 lg:p-[22px] flex-1 basis-[320px] min-w-0"><h2 class="font-display font-bold text-[17px] lg:text-lg mb-1">Invite a new teacher</h2><p class="text-[13px] text-slate-600 mb-4">They get an email with a link to set their password, then log straight into the teacher portal.</p>' +
+    '<label class="lbl" for="i-name">Full name</label><input id="i-name" data-input="i-name" value="' + escapeHtml(u.name) + '" placeholder="e.g. Mrs Funke Adeyemi" autocomplete="off" class="field mb-3.5">' +
+    '<label class="lbl" for="i-email">Email address</label><input id="i-email" type="email" data-input="i-email" value="' + escapeHtml(u.email) + '" placeholder="teacher@example.com" autocomplete="off" class="field mb-3.5">' +
+    '<label class="lbl" for="i-cls">Assign a class now (optional)</label><select id="i-cls" data-change="i-cls" class="field mb-3"><option value="">Assign later</option>' + state.classes.map((c) => '<option value="' + c.id + '"' + (c.id === u.cls ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>').join('') + '</select>' +
+    (u.cls ? '<div class="lbl">Subjects they will teach in ' + escapeHtml(className(u.cls)) + '</div><div class="flex flex-wrap gap-1.5 mb-4">' + state.subjects.map((s) => { const on = u.subj.includes(s.id); return '<button type="button" data-action="i-subj" data-id="' + s.id + '" aria-pressed="' + on + '" class="min-h-[38px] px-3 rounded-full text-[13px] font-semibold border ' + (on ? 'border-navy bg-navy text-white' : 'border-slate-300 bg-white text-slate-700') + '">' + escapeHtml(s.name) + '</button>'; }).join('') + '</div>' : '') +
+    '<button type="button" data-action="i-send" class="w-full ' + btnPrimary + ' inline-flex items-center justify-center gap-2"' + (state.ui.busy ? ' disabled' : '') + '>' + icon('invites', 18) + (state.ui.busy ? 'Sending…' : 'Send invite') + '</button></section>';
+
+  // Manage teachers
+  html += '<section class="flex-[999_1_460px] min-w-0"><div class="flex justify-between items-baseline mb-2.5"><h2 class="font-display font-bold text-[17px] lg:text-lg">Teachers and invites</h2><button type="button" data-action="i-refresh" class="text-sm font-semibold text-navy min-h-[44px]">Refresh</button></div>';
+  if (u.loading || u.list === null) html += '<div class="' + card + ' px-6 py-10 text-center text-sm text-slate-600">Loading teachers…</div>';
+  else if (u.listError) html += '<div class="bg-white border border-red-200 rounded-2xl px-6 py-8 text-center"><p class="text-sm text-red-800 font-semibold mb-4">' + escapeHtml(u.listError) + '</p><button type="button" data-action="i-refresh" class="' + btnPrimary + '">Try again</button></div>';
+  else if (!u.list.length) html += '<div class="' + card + ' px-6 py-10 text-center text-sm text-slate-600">No teachers yet. Send your first invite.</div>';
+  else {
+    const rows = u.list.map((t) => { const p = state.profiles.find((x) => x.id === t.id); return { ...t, name: (p && p.full_name) || t.full_name || t.email, count: state.assignments.filter((a) => a.teacher_id === t.id).length }; })
+      .sort((a, b) => (b.pending - a.pending) || a.name.localeCompare(b.name));
+    html += '<div class="flex flex-col gap-2.5">' + rows.map((t) => {
+      const confirming = u.confirm && u.confirm.endsWith(':' + t.id) ? u.confirm.split(':')[0] : null;
+      const status = t.pending
+        ? '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">Invite sent' + (t.invited_at ? ' · ' + formatDate(t.invited_at) : '') + '</span>'
+        : '<span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[11px] font-bold">Active' + (t.last_sign_in_at ? ' · last seen ' + formatDate(t.last_sign_in_at) : '') + '</span>';
+      let actions;
+      if (confirming === 'cancel') actions = '<div class="flex flex-wrap gap-2 items-center p-3 rounded-[10px] bg-red-50 mt-2.5"><span class="flex-1 text-[13px] font-semibold text-red-800">Cancel this invite? The link in their email will stop working.</span><button type="button" data-action="i-cancel" data-id="' + t.id + '" class="min-h-[40px] px-3 rounded-[9px] bg-red-700 text-white text-[13px] font-semibold">Yes, cancel</button><button type="button" data-action="i-keep" class="min-h-[40px] px-3 rounded-[9px] border border-slate-300 bg-white text-[13px] font-semibold text-slate-700">Keep</button></div>';
+      else if (confirming === 'demote') actions = '<div class="flex flex-wrap gap-2 items-center p-3 rounded-[10px] bg-red-50 mt-2.5"><span class="flex-1 text-[13px] font-semibold text-red-800">Remove the teacher role? Their ' + t.count + ' assignment' + (t.count === 1 ? '' : 's') + ' will be removed and they become a student account.</span><button type="button" data-action="i-demote" data-id="' + t.id + '" class="min-h-[40px] px-3 rounded-[9px] bg-red-700 text-white text-[13px] font-semibold">Yes, remove</button><button type="button" data-action="i-keep" class="min-h-[40px] px-3 rounded-[9px] border border-slate-300 bg-white text-[13px] font-semibold text-slate-700">Keep</button></div>';
+      else actions = '<div class="flex flex-wrap gap-2 mt-2.5"><button type="button" data-action="i-assign" data-id="' + t.id + '" class="' + btnSmall + ' min-h-[44px] lg:min-h-[36px]">Assign classes</button>' +
+        (t.pending ? '<button type="button" data-action="i-resend" data-id="' + t.id + '" class="' + btnSmall + ' min-h-[44px] lg:min-h-[36px]">Resend invite</button><button type="button" data-action="i-ask" data-kind="cancel" data-id="' + t.id + '" class="' + btnDanger + ' min-h-[44px] lg:min-h-[36px]">Cancel invite</button>'
+          : '<button type="button" data-action="i-ask" data-kind="demote" data-id="' + t.id + '" class="' + btnDanger + ' min-h-[44px] lg:min-h-[36px]">Remove teacher role</button>') + '</div>';
+      return '<div class="bg-white border border-slate-200 rounded-[14px] px-4 lg:px-[18px] py-3.5 shadow-card"><div class="flex flex-wrap gap-2 items-center"><span class="font-bold text-[15px]">' + escapeHtml(t.name) + '</span>' + status + '</div><div class="text-[13px] text-slate-600 break-all mt-0.5">' + escapeHtml(t.email || '') + ' · ' + (t.count ? t.count + ' class-subject assignment' + (t.count === 1 ? '' : 's') : 'not assigned yet') + '</div>' + actions + '</div>';
+    }).join('') + '</div>';
+  }
+  html += '</section></div>';
+  return html;
+}
+async function sendInvite() {
+  const u = state.ui.i;
+  const name = u.name.trim().replace(/\s+/g, ' '), email = u.email.trim().toLowerCase();
+  if (name.length < 3) return toast("Enter the teacher's full name.", false);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('Enter a valid email address.', false);
+  if (u.cls && !u.subj.length) return toast('Choose at least one subject for ' + className(u.cls) + ', or set the class to "Assign later".', false);
+  state.ui.busy = true; render();
+  const r = await callInvite('invite', { email, full_name: name });
+  if (r.error) { state.ui.busy = false; render(); return toast('Invite not sent. ' + r.error, false); }
+  let note = '';
+  if (u.cls) {
+    const rows = u.subj.map((s) => ({ teacher_id: r.data.user_id, class_id: u.cls, subject_id: s }));
+    const { error } = await sb.from('teacher_assignments').insert(rows);
+    note = error ? ' But the class assignments were not saved. The database said: ' + error.message : ' Assigned to ' + className(u.cls) + '.';
+  }
+  state.ui.busy = false;
+  toast('Invite sent to ' + email + '.' + note, !note.startsWith(' But'));
+  state.ui.i = { name: '', email: '', cls: '', subj: [], list: null, loading: false, confirm: null };
+  await loadAll(); render();
+}
+async function resendInvite(id) {
+  const r = await callInvite('resend', { user_id: id });
+  if (r.error) return toast('Invite not resent. ' + r.error, false);
+  toast('Invite email sent again.', true);
+}
+async function cancelInvite(id) {
+  const r = await callInvite('cancel', { user_id: id });
+  state.ui.i.confirm = null;
+  if (r.error) { render(); return toast('Invite not cancelled. ' + r.error, false); }
+  toast('Invite cancelled.', true);
+  state.ui.i.list = null; await loadAll(); render();
+}
+async function removeTeacherRole(id) {
+  const p = state.profiles.find((x) => x.id === id);
+  const name = (p && p.full_name) || 'This teacher';
+  state.ui.i.confirm = null;
+  const del = await sb.from('teacher_assignments').delete().eq('teacher_id', id);
+  if (del.error) { render(); return toast(dbError(name + "'s assignments were not removed.", del.error), false); }
+  const r = await sb.from('user_roles').update({ role: 'student' }).eq('user_id', id).select('user_id');
+  if (r.error || !r.data || !r.data.length) { await loadAll(); render(); return toast(dbError('The teacher role was not removed.', r.error || { message: 'No role row was updated.' }), false); }
+  toast(name + ' is no longer a teacher.', true);
+  state.ui.i.list = null; await loadAll(); render();
 }
 
 /* ---------- Classes & Subjects ---------- */
@@ -434,16 +540,16 @@ async function deleteNotice(id) {
 }
 
 /* ---------- Rendering ---------- */
-const RENDER = { dashboard: viewDashboard, students: viewStudents, teachers: viewTeachers, classes: viewClasses, fees: viewFees, announcements: viewAnnouncements };
+const RENDER = { dashboard: viewDashboard, students: viewStudents, teachers: viewTeachers, invites: viewInvites, classes: viewClasses, fees: viewFees, announcements: viewAnnouncements };
 const currentView = () => { const v = location.hash.replace('#', ''); return RENDER[v] ? v : 'dashboard'; };
 function renderChrome(view) {
   document.getElementById('side-nav').innerHTML = Object.keys(VIEWS).map((k) => { const on = k === view;
     return '<a href="#' + k + '"' + (on ? ' aria-current="page"' : '') + ' class="flex items-center gap-3 min-h-[44px] px-3 rounded-[10px] text-[15px] ' + (on ? 'bg-white/[0.14] text-white font-semibold' : 'text-slate-300 font-medium hover:bg-white/10 hover:text-white') + '">' + icon(k, 20, on ? 'style="color:#D4A017"' : '') + VIEWS[k].replace('&', '&amp;') + '</a>'; }).join('');
-  document.getElementById('bottom-nav').innerHTML = BOTTOM.map(([k, label, ic]) => { const on = k === view || (k === 'teachers' && view === 'classes');
+  document.getElementById('bottom-nav').innerHTML = BOTTOM.map(([k, label, ic]) => { const on = k === view || (k === 'teachers' && (view === 'classes' || view === 'invites'));
     return '<a href="#' + k + '"' + (on ? ' aria-current="page"' : '') + ' class="flex flex-col items-center justify-center gap-[3px] min-h-[52px] text-xs ' + (on ? 'text-navy font-bold' : 'text-slate-600 font-medium') + '"><span class="w-[52px] h-[30px] rounded-full flex items-center justify-center ' + (on ? 'bg-navy-soft' : '') + '">' + icon(ic, 20) + '</span>' + label + '</a>'; }).join('');
   const more = document.getElementById('more-tabs');
-  more.classList.toggle('hidden', !['teachers', 'classes'].includes(view));
-  more.innerHTML = [['teachers', 'Teachers'], ['classes', 'Classes &amp; Subjects']].map(([k, l]) => '<a href="#' + k + '"' + (k === view ? ' aria-current="page"' : '') + ' class="flex items-center justify-center min-h-[46px] text-sm border-b-[3px] ' + (k === view ? 'font-bold text-navy border-navy' : 'font-medium text-slate-600 border-transparent') + '">' + l + '</a>').join('');
+  more.classList.toggle('hidden', !['teachers', 'invites', 'classes'].includes(view));
+  more.innerHTML = [['teachers', 'Teachers'], ['invites', 'Invite'], ['classes', 'Classes &amp; Subjects']].map(([k, l]) => '<a href="#' + k + '"' + (k === view ? ' aria-current="page"' : '') + ' class="flex items-center justify-center min-h-[46px] text-sm border-b-[3px] ' + (k === view ? 'font-bold text-navy border-navy' : 'font-medium text-slate-600 border-transparent') + '">' + l + '</a>').join('');
   const name = (state.me && state.me.full_name) || state.user.email;
   document.querySelectorAll('[data-bind="initials"]').forEach((el) => { el.textContent = initials(name); });
   document.querySelectorAll('[data-bind="name"]').forEach((el) => { el.textContent = name; });
@@ -482,6 +588,16 @@ document.addEventListener('click', async (e) => {
   if (a === 't-subj') { const i = ui.t.subj.indexOf(id); i >= 0 ? ui.t.subj.splice(i, 1) : ui.t.subj.push(id); return render(); }
   if (a === 't-assign') return addAssignments();
   if (a === 't-unassign') return removeAssignment(id);
+  // Invite Teachers
+  if (a === 'i-subj') { const i = ui.i.subj.indexOf(id); i >= 0 ? ui.i.subj.splice(i, 1) : ui.i.subj.push(id); return render(); }
+  if (a === 'i-send') return sendInvite();
+  if (a === 'i-refresh') { ui.i.list = null; return render(); }
+  if (a === 'i-resend') return resendInvite(id);
+  if (a === 'i-ask') { ui.i.confirm = el.dataset.kind + ':' + id; return render(); }
+  if (a === 'i-keep') { ui.i.confirm = null; return render(); }
+  if (a === 'i-cancel') return cancelInvite(id);
+  if (a === 'i-demote') return removeTeacherRole(id);
+  if (a === 'i-assign') { ui.t.sel = id; ui.t.cls = ''; ui.t.subj = []; location.hash = 'teachers'; return; }
   // Classes & subjects
   if (a === 'cs-add') return csAdd(el.dataset.kind);
   if (a === 'cs-edit') { const list = el.dataset.kind === 'classes' ? state.classes : state.subjects; Object.assign(ui.cs, { editKind: el.dataset.kind, editId: id, editVal: list.find((x) => x.id === id).name }); return render(); }
@@ -508,6 +624,7 @@ document.addEventListener('change', (e) => {
   if (k === 's-cls') { ui.s.cls = e.target.value; render(); }
   if (k === 'f-cls') { ui.f.cls = e.target.value; render(); }
   if (k === 't-cls') { ui.t.cls = e.target.value; ui.t.subj = []; render(); }
+  if (k === 'i-cls') { ui.i.cls = e.target.value; render(); }
   if (e.target.dataset.edit && ui.s.edit) ui.s.edit[e.target.dataset.edit] = e.target.value;
 });
 document.addEventListener('input', (e) => {
@@ -516,6 +633,8 @@ document.addEventListener('input', (e) => {
   if (k === 's-q') { ui.s.q = t.value; return rerenderKeepFocus(k); }
   if (k === 'f-q') { ui.f.q = t.value; return rerenderKeepFocus(k); }
   if (k === 't-email') ui.t.email = t.value;
+  if (k === 'i-name') ui.i.name = t.value;
+  if (k === 'i-email') ui.i.email = t.value;
   if (k === 'cs-edit') ui.cs.editVal = t.value;
   if (k === 'newClass' || k === 'newSubject') ui.cs[k] = t.value;
   if (k === 'f-amount') ui.f.amount = t.value;
@@ -527,6 +646,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
   const k = e.target.dataset.input;
   if (k === 't-email') promoteTeacher();
+  if (k === 'i-email' || k === 'i-name') sendInvite();
   if (k === 'newClass') csAdd('classes');
   if (k === 'newSubject') csAdd('subjects');
 });
