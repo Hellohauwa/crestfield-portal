@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teacher Portal — Crestfield College</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    .field{width:100%;height:46px;padding:0 12px;border:1.5px solid #CBD5E1;border-radius:10px;font:15px Inter,sans-serif;color:#0F172A;background:#fff}
+    .field:focus,.score:focus{outline:3px solid #BFDBFE;border-color:#1E3A8A}
+    .score{width:100%;height:42px;padding:0 10px;border-radius:8px;font:600 16px Inter,sans-serif;color:#0F172A;border:1.5px solid #CBD5E1;background:#fff}
+    .score.empty{border-style:dashed;background:#F8FAFC}
+    .score.bad{border-color:#B91C1C;background:#FEF2F2}
+    .tnum{font-variant-numeric:tabular-nums}
+  </style>
+</head>
+<body class="bg-page font-sans text-ink antialiased">
+
+<div id="boot" class="min-h-screen flex flex-col items-center justify-center gap-4 text-slate-600">
+  <span data-crest="48"></span><p class="text-sm font-medium">Loading the teacher portal…</p>
+</div>
+
+<div id="app" class="hidden min-h-screen lg:flex">
+  <aside class="hidden lg:flex w-[248px] flex-none bg-navy text-white px-4 py-6 flex-col gap-7 sticky top-0 h-screen overflow-y-auto">
+    <div class="flex items-center gap-2.5 px-2">
+      <span data-crest="34"></span>
+      <div><div class="font-display font-extrabold text-[17px]">Crestfield College</div><span class="inline-block mt-0.5 px-2 py-0.5 rounded-full bg-gold text-ink text-[11px] font-bold">Teacher Portal</span></div>
+    </div>
+    <nav aria-label="Main" id="side-nav" class="flex flex-col gap-1"></nav>
+    <div class="mt-auto border-t border-white/15 pt-4 px-2 flex items-center gap-2.5">
+      <div class="flex-none w-10 h-10 rounded-full bg-gold text-ink flex items-center justify-center font-bold text-[15px]" data-bind="initials"></div>
+      <div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate" data-bind="name"></div><div class="text-xs text-indigo-200">Teacher</div></div>
+      <button type="button" data-action="logout" aria-label="Log out" title="Log out" class="flex items-center justify-center w-11 h-11 rounded-[10px] text-slate-300 hover:bg-white/10 hover:text-white">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div class="flex-1 min-w-0 flex flex-col">
+    <header class="lg:hidden sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2.5">
+      <span data-crest="28"></span>
+      <div class="flex-1 min-w-0"><h1 id="m-title" class="font-display font-bold text-lg leading-tight"></h1><div id="m-sub" class="text-xs text-slate-600"></div></div>
+      <button type="button" data-action="logout" aria-label="Log out" class="w-11 h-11 rounded-full bg-gold text-ink flex items-center justify-center font-bold text-[15px]" data-bind="initials"></button>
+    </header>
+    <main id="view" class="flex-1 w-full max-w-[1100px] p-4 lg:px-10 lg:py-8 pb-28 lg:pb-8"></main>
+  </div>
+
+  <nav aria-label="Main" id="bottom-nav" class="lg:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-slate-200 px-1 pt-1.5 pb-3.5 grid grid-cols-4 shadow-[0_-4px_12px_rgba(15,23,42,0.05)]"></nav>
+</div>
+
+<script>
+const ICON = {
+  dashboard: 'M3 10.5L12 3l9 7.5M5 9v11h5v-6h4v6h5V9',
+  results: 'M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z',
+  attendance: 'M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zM9 15l2 2 4-4',
+  classes: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+  check: 'M20 6L9 17l-5-5', info: 'M12 8v5M12 16h.01M12 21a9 9 0 110-18 9 9 0 010 18z', search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-4.3-4.3'
+};
+const icon = (n, s, extra) => '<svg width="' + (s || 20) + '" height="' + (s || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ' + (extra || '') + '><path d="' + ICON[n] + '"/></svg>';
+const VIEWS = { dashboard: 'Dashboard', results: 'Enter Results', attendance: 'Take Attendance', classes: 'My Classes' };
+const SHORT = { dashboard: 'Home', results: 'Results', attendance: 'Attendance', classes: 'Classes' };
+const card = 'bg-white border border-slate-200 rounded-2xl shadow-card';
+
+const state = {
+  user: null, profile: null,
+  assignments: [], classes: [], students: {}, results: [], attendance: [], error: null,
+  ui: {
+    r: { classId: null, subjectId: null, term: SCHOOL.currentTerm, session: SCHOOL.currentSession, rows: null, draft: {}, loading: false, saving: false },
+    a: { classId: null, date: toISODate(new Date()), marks: {}, saved: {}, loading: false, saving: false },
+    c: { classId: null, q: '' }
+  }
+};
+
+/* ---------- Data ---------- */
+async function loadAll() {
+  state.error = null;
+  const uid = state.user.id;
+  const [p, a] = await Promise.all([
+    sb.from('profiles').select('id, full_name').eq('id', uid).maybeSingle(),
+    sb.from('teacher_assignments').select('id, class_id, subject_id, classes(name), subjects(name)').eq('teacher_id', uid)
+  ]);
+  state.profile = p.data;
+  if (a.error) { state.error = a.error.message; return; }
+  state.assignments = a.data || [];
+
+  const byClass = {};
+  state.assignments.forEach((x) => {
+    const c = byClass[x.class_id] = byClass[x.class_id] || { id: x.class_id, name: (x.classes && x.classes.name) || 'Class', subjects: [] };
+    c.subjects.push({ id: x.subject_id, name: (x.subjects && x.subjects.name) || 'Subject' });
+  });
+  state.classes = Object.values(byClass).sort((x, y) => x.name.localeCompare(y.name));
+  state.classes.forEach((c) => c.subjects.sort((x, y) => x.name.localeCompare(y.name)));
+  if (!state.classes.length) return;
+
+  const classIds = state.classes.map((c) => c.id);
+  const st = await sb.from('profiles').select('id, full_name, admission_number, parent_phone, class_id').in('class_id', classIds).neq('id', uid).order('full_name');
+  if (st.error) { state.error = st.error.message; return; }
+  state.students = {};
+  classIds.forEach((id) => { state.students[id] = []; });
+  (st.data || []).forEach((s) => state.students[s.class_id].push(s));
+
+  const ids = (st.data || []).map((s) => s.id);
+  const subjectIds = [...new Set(state.assignments.map((x) => x.subject_id))];
+  if (!ids.length) { state.results = []; state.attendance = []; return; }
+  const [r, att] = await Promise.all([
+    sb.from('results').select('student_id, subject_id, ca_score, exam_score').in('student_id', ids).in('subject_id', subjectIds).eq('term', SCHOOL.currentTerm).eq('session', SCHOOL.currentSession),
+    sb.from('attendance').select('student_id, date, status').in('student_id', ids).gte('date', SCHOOL.termStartDate)
+  ]);
+  if (r.error || att.error) { state.error = (r.error || att.error).message; return; }
+  state.results = r.data || [];
+  state.attendance = att.data || [];
+}
+
+const classById = (id) => state.classes.find((c) => c.id === id);
+const studentCount = () => state.classes.reduce((n, c) => n + (state.students[c.id] || []).length, 0);
+const subjectNames = () => [...new Set(state.assignments.map((x) => (x.subjects && x.subjects.name) || ''))].sort();
+const todayISO = () => toISODate(new Date());
+const fmt = (n) => Number.isInteger(n) ? String(n) : n.toFixed(1);
+
+/* ---------- Shared pieces ---------- */
+function pageHeader(title, sub, right) {
+  return '<div class="hidden lg:flex flex-wrap gap-3 items-center justify-between mb-6"><div><h1 class="font-display font-bold text-[28px]">' + title + '</h1><div class="text-sm text-slate-600 mt-0.5">' + sub + '</div></div>' + (right || '') + '</div>';
+}
+const pill = (t) => '<span class="px-3.5 py-2 rounded-full text-sm font-semibold bg-white border border-slate-200 text-navy">' + t + '</span>';
+function emptyState(title, text) {
+  return '<div class="bg-white border border-dashed border-slate-300 rounded-2xl px-6 py-12 text-center"><div class="w-14 h-14 rounded-2xl bg-navy-tint text-navy mx-auto mb-4 flex items-center justify-center">' + icon('info', 26) + '</div><h2 class="font-display font-bold text-lg mb-1.5">' + title + '</h2><p class="text-sm text-slate-600 max-w-md mx-auto">' + text + '</p></div>';
+}
+const noAssignments = () => emptyState('No classes assigned yet', 'Ask the school office to assign your classes and subjects. They will appear here straight away.');
+function classOptions(sel) { return state.classes.map((c) => '<option value="' + c.id + '"' + (c.id === sel ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>').join(''); }
+
+/* ---------- Dashboard ---------- */
+function viewDashboard() {
+  const name = (state.profile && state.profile.full_name) || state.user.email;
+  let html = pageHeader('Dashboard', escapeHtml(formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })), pill(TERM_NAMES[SCHOOL.currentTerm] + ' · ' + SCHOOL.currentSession));
+  html += '<section class="bg-navy text-white rounded-[20px] p-[22px] lg:px-8 lg:py-7 shadow-navy mb-4 lg:mb-6"><div class="text-sm lg:text-[15px] text-indigo-200">Welcome,</div><h2 class="font-display font-extrabold text-2xl lg:text-[30px] mt-0.5 mb-3">' + escapeHtml(name) + '</h2>' +
+    '<div class="flex flex-wrap gap-2">' + (subjectNames().length ? '<span class="px-3 py-1.5 rounded-full bg-gold text-ink text-[13px] font-semibold">' + escapeHtml(subjectNames().join(' · ')) + '</span>' : '') + '<span class="px-3 py-1.5 rounded-full bg-white/15 text-[13px] font-semibold">' + currentTermText() + '</span></div></section>';
+  if (state.error) return html + errorBox();
+  if (!state.classes.length) return html + noAssignments();
+
+  const progress = state.assignments.map((x) => {
+    const studs = state.students[x.class_id] || [];
+    const done = studs.filter((s) => state.results.some((r) => r.student_id === s.id && r.subject_id === x.subject_id)).length;
+    return { cls: classById(x.class_id).name, subject: (x.subjects && x.subjects.name) || '', classId: x.class_id, subjectId: x.subject_id, done, total: studs.length };
+  }).sort((a, b) => (a.cls + a.subject).localeCompare(b.cls + b.subject));
+  const missing = progress.reduce((n, p) => n + (p.total - p.done), 0);
+  const today = todayISO();
+  const regs = state.classes.map((c) => { const studs = state.students[c.id] || []; const marked = studs.filter((s) => state.attendance.some((a) => a.student_id === s.id && a.date === today)).length; return { c, marked, total: studs.length }; });
+  const pending = regs.filter((r) => r.total && r.marked < r.total);
+
+  const stat = (href, label, value, note, cls) => '<a href="' + href + '" class="' + card + ' p-4 lg:p-5 text-ink hover:border-navy/30"><div class="text-[13px] lg:text-sm text-slate-600 font-medium mb-1.5 lg:mb-2.5">' + label + '</div><div class="font-display font-extrabold text-[26px] lg:text-[32px] leading-tight ' + (cls || '') + '">' + value + '</div><div class="text-xs lg:text-[13px] font-semibold mt-0.5 ' + (cls || 'text-slate-600') + '">' + note + '</div></a>';
+  html += '<section class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-4 lg:mb-6">' +
+    stat('#classes', 'My classes', state.classes.length, studentCount() + ' students') +
+    stat('#classes', 'My subjects', subjectNames().length, escapeHtml(subjectNames().join(', ')), 'text-navy') +
+    stat('#results', 'Results to enter', missing, missing ? 'Scores missing' : 'All entered', missing ? 'text-amber-800' : 'text-green-700') +
+    stat('#attendance', "Today's attendance", pending.length ? 'Not taken' : 'Done', pending.length ? pending.map((r) => escapeHtml(r.c.name)).join(', ') : 'All registers taken', pending.length ? 'text-red-700' : 'text-green-700') +
+    '</section>';
+
+  html += '<div class="flex flex-col lg:flex-row gap-4 lg:gap-5 items-stretch lg:items-start mb-4 lg:mb-6">' +
+    '<section class="' + card + ' lg:flex-[2] min-w-0 px-4 lg:px-6 pt-1 lg:pt-3 pb-2 lg:pb-4"><div class="flex justify-between items-center"><h2 class="font-display font-bold text-[17px] lg:text-[19px]">Results still to enter</h2><a href="#results" class="inline-flex items-center min-h-[44px] text-sm font-semibold text-navy">Enter results</a></div>' +
+    progress.map((p) => { const full = p.total && p.done === p.total; const pct = p.total ? Math.round(p.done / p.total * 100) : 0;
+      return '<button type="button" data-action="open-results" data-class="' + p.classId + '" data-subject="' + p.subjectId + '" class="w-full text-left py-3 lg:py-3.5 border-t border-slate-100"><div class="flex justify-between items-center gap-3 mb-2"><span class="font-semibold text-sm lg:text-[15px]">' + escapeHtml(p.cls) + ' <span class="font-normal text-slate-600">· ' + escapeHtml(p.subject) + '</span></span><span class="flex-none text-xs lg:text-[13px] font-bold px-2.5 py-0.5 rounded-full ' + (full ? 'bg-green-100 text-green-700' : p.done ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700') + '">' + (!p.total ? 'No students' : full ? 'Complete' : p.done + ' of ' + p.total + ' entered') + '</span></div><div class="h-2 rounded-full bg-slate-100"><div class="h-2 rounded-full ' + (full ? 'bg-green-700' : 'bg-navy') + '" style="width:' + pct + '%"></div></div></button>'; }).join('') +
+    '</section>' +
+    '<section class="' + card + ' lg:flex-1 min-w-0 p-4 lg:p-6"><h2 class="font-display font-bold text-[17px] lg:text-[19px] mb-1">Today\'s attendance</h2><p class="text-sm text-slate-600 mb-3">' + escapeHtml(formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long' })) + '</p>' +
+    regs.map((r) => { const done = r.total && r.marked === r.total;
+      return '<div class="flex items-center gap-3 py-2.5 border-t border-slate-100"><div class="flex-1 min-w-0"><div class="font-semibold text-[15px]">' + escapeHtml(r.c.name) + '</div><div class="text-[13px] ' + (done ? 'text-green-700' : 'text-red-700') + ' font-semibold">' + (!r.total ? 'No students yet' : done ? 'Taken · ' + r.total + ' marked' : r.marked ? r.marked + ' of ' + r.total + ' marked' : 'Not taken yet') + '</div></div>' + (done || !r.total ? '' : '<button type="button" data-action="open-attendance" data-class="' + r.c.id + '" class="flex-none min-h-[44px] px-3.5 rounded-xl bg-navy text-white text-sm font-semibold">Take now</button>') + '</div>'; }).join('') +
+    '</section></div>';
+
+  html += '<section><h2 class="font-display font-bold text-[17px] lg:text-[19px] mb-3">My classes</h2><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">' +
+    state.classes.map((c) => '<button type="button" data-action="open-class" data-class="' + c.id + '" class="' + card + ' p-4 lg:p-5 text-left"><div class="font-display font-extrabold text-xl lg:text-[22px]">' + escapeHtml(c.name) + '</div><div class="text-sm text-slate-600 mt-1">' + escapeHtml(c.subjects.map((s) => s.name).join(', ')) + '</div><div class="text-sm font-semibold mt-1.5">' + (state.students[c.id] || []).length + ' students</div></button>').join('') +
+    '</div></section>';
+  return html;
+}
+function errorBox() {
+  return '<div class="bg-white border border-red-200 rounded-2xl px-6 py-10 text-center"><h2 class="font-display font-bold text-lg mb-1.5">Something went wrong.</h2><p class="text-sm text-slate-600 mb-5">' + escapeHtml(state.error || 'Please try again.') + '</p><button type="button" data-action="retry" class="inline-flex items-center min-h-[44px] px-5 rounded-xl bg-navy text-white font-semibold text-sm">Try again</button></div>';
+}
+
+/* ---------- Enter Results ---------- */
+function ensureResultsSelection() {
+  const r = state.ui.r;
+  if (!classById(r.classId)) r.classId = state.classes[0] && state.classes[0].id;
+  const c = classById(r.classId);
+  if (c && !c.subjects.some((s) => s.id === r.subjectId)) r.subjectId = c.subjects[0].id;
+}
+async function loadResultsRows() {
+  const r = state.ui.r;
+  const studs = state.students[r.classId] || [];
+  r.loading = true; r.rows = null; r.draft = {};
+  if (!studs.length) { r.rows = []; r.loading = false; return; }
+  const { data, error } = await sb.from('results').select('student_id, ca_score, exam_score').in('student_id', studs.map((s) => s.id)).eq('subject_id', r.subjectId).eq('term', r.term).eq('session', r.session);
+  r.loading = false;
+  if (error) { toast(dbError('Could not load results.', error), false); r.rows = []; return; }
+  const saved = {}; (data || []).forEach((x) => { saved[x.student_id] = x; });
+  r.rows = studs.map((s) => ({ s, saved: saved[s.id] || null }));
+  r.rows.forEach(({ s, saved: v }) => { r.draft[s.id] = { ca: v ? fmt(Number(v.ca_score)) : '', exam: v ? fmt(Number(v.exam_score)) : '' }; });
+}
+function scoreState(v, max) {
+  if (v === '' || v == null) return { empty: true, ok: true, n: null };
+  const n = Number(v);
+  return { empty: false, ok: !isNaN(n) && n >= 0 && n <= max, n };
+}
+function rowStatus(d) {
+  const ca = scoreState(d.ca, 40), ex = scoreState(d.exam, 60);
+  if (!ca.ok) return { ca, ex, total: null, status: 'CA must be 0–40', cls: 'text-red-700', bad: true };
+  if (!ex.ok) return { ca, ex, total: null, status: 'Exam must be 0–60', cls: 'text-red-700', bad: true };
+  if (ca.empty && ex.empty) return { ca, ex, total: null, status: 'Not entered', cls: 'text-red-700' };
+  if (ca.empty || ex.empty) return { ca, ex, total: null, status: 'Incomplete', cls: 'text-amber-800', half: true };
+  const total = Math.round((ca.n + ex.n) * 10) / 10;
+  return { ca, ex, total, status: 'Complete', cls: 'text-green-700', ...gradeFor(total) };
+}
+function viewResults() {
+  let html = pageHeader('Enter Results', 'Type CA and exam scores. Total and grade update as you type.');
+  if (state.error) return html + errorBox();
+  if (!state.classes.length) return html + noAssignments();
+  ensureResultsSelection();
+  const r = state.ui.r, c = classById(r.classId);
+  if (r.rows === null && !r.loading) { loadResultsRows().then(() => { if (currentView() === 'results') render(); }); }
+  const prevSession = (() => { const [a, b] = SCHOOL.currentSession.split('/').map(Number); return (a - 1) + '/' + (b - 1); })();
+
+  html += '<section class="' + card + ' p-4 lg:px-6 lg:py-5 grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-3 lg:mb-5">' +
+    '<div><label for="r-class" class="block text-[13px] lg:text-sm font-semibold mb-1.5">Class</label><select id="r-class" data-change="r-class" class="field">' + classOptions(r.classId) + '</select></div>' +
+    '<div><label for="r-subject" class="block text-[13px] lg:text-sm font-semibold mb-1.5">Subject</label><select id="r-subject" data-change="r-subject" class="field">' + c.subjects.map((s) => '<option value="' + s.id + '"' + (s.id === r.subjectId ? ' selected' : '') + '>' + escapeHtml(s.name) + '</option>').join('') + '</select></div>' +
+    '<div><label for="r-term" class="block text-[13px] lg:text-sm font-semibold mb-1.5">Term</label><select id="r-term" data-change="r-term" class="field">' + [1, 2, 3].map((t) => '<option value="' + t + '"' + (t === r.term ? ' selected' : '') + '>' + TERM_NAMES[t] + '</option>').join('') + '</select></div>' +
+    '<div><label for="r-session" class="block text-[13px] lg:text-sm font-semibold mb-1.5">Session</label><select id="r-session" data-change="r-session" class="field">' + [SCHOOL.currentSession, prevSession].map((x) => '<option' + (x === r.session ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></div>' +
+    '</section>';
+
+  if (r.loading || r.rows === null) return html + '<p class="py-10 text-center text-sm text-slate-600">Loading students…</p>';
+  if (!r.rows.length) return html + emptyState('No students in ' + escapeHtml(c.name) + ' yet', 'Students appear here once the school office puts them in this class.');
+
+  const subjectName = c.subjects.find((s) => s.id === r.subjectId).name;
+  const cols = 'lg:grid lg:grid-cols-[minmax(0,2.4fr)_112px_112px_72px_72px_minmax(0,1.1fr)]';
+  html += '<section class="' + card + ' overflow-hidden">' +
+    '<div class="px-4 lg:px-6 py-4 flex flex-wrap gap-2 justify-between items-center border-b border-slate-200"><div><h2 class="font-display font-bold text-[17px] lg:text-lg">' + escapeHtml(c.name) + ' · ' + escapeHtml(subjectName) + '</h2><div class="text-[13px] text-slate-600">' + TERM_NAMES[r.term] + ', ' + r.session + ' · Total = CA (40) + Exam (60)</div></div><span id="r-progress" class="px-3 py-1 rounded-full text-[13px] font-bold"></span></div>' +
+    '<div class="hidden ' + cols + ' bg-page text-slate-600 text-[13px] font-semibold"><div class="px-6 py-3">Student</div><div class="px-2 py-3">CA (max 40)</div><div class="px-2 py-3">Exam (max 60)</div><div class="px-2 py-3 text-center">Total</div><div class="px-2 py-3 text-center">Grade</div><div class="px-2 py-3">Status</div></div>' +
+    r.rows.map(({ s }) => { const d = r.draft[s.id];
+      return '<div class="border-t border-slate-100 px-4 lg:px-0 py-3 lg:py-0 ' + cols + ' lg:items-center" data-row="' + s.id + '">' +
+        '<div class="lg:px-6 lg:py-2.5 flex justify-between items-baseline gap-2 mb-2 lg:mb-0"><div><div class="font-semibold text-[15px]">' + escapeHtml(s.full_name) + '</div><div class="text-xs text-slate-600">' + escapeHtml(s.admission_number || 'No admission number') + '</div></div><span class="lg:hidden text-xs font-semibold" data-status></span></div>' +
+        '<div class="grid grid-cols-[1fr_1fr_56px_44px] lg:contents gap-2 items-end">' +
+        '<label class="lg:px-2 lg:py-2 block"><span class="lg:sr-only block text-[11px] font-semibold text-slate-600 mb-0.5">CA /40</span><input class="score" data-score="ca" data-id="' + s.id + '" type="number" inputmode="decimal" min="0" max="40" step="0.5" value="' + escapeHtml(d.ca) + '" placeholder="—" aria-label="CA score for ' + escapeHtml(s.full_name) + '"></label>' +
+        '<label class="lg:px-2 lg:py-2 block"><span class="lg:sr-only block text-[11px] font-semibold text-slate-600 mb-0.5">Exam /60</span><input class="score" data-score="exam" data-id="' + s.id + '" type="number" inputmode="decimal" min="0" max="60" step="0.5" value="' + escapeHtml(d.exam) + '" placeholder="—" aria-label="Exam score for ' + escapeHtml(s.full_name) + '"></label>' +
+        '<div class="lg:px-2 text-center"><span class="lg:hidden block text-[11px] font-semibold text-slate-600">Total</span><span class="block h-[42px] leading-[42px] font-display font-extrabold text-lg lg:text-base tnum" data-total></span></div>' +
+        '<div class="lg:px-2 text-center"><span class="inline-flex w-10 lg:w-8 h-[42px] lg:h-7 items-center justify-center rounded-lg font-bold" data-grade></span></div>' +
+        '</div>' +
+        '<div class="hidden lg:block px-2 py-2.5 text-[13px] font-semibold" data-status></div></div>'; }).join('') +
+    '<div class="sticky bottom-[76px] lg:static px-4 lg:px-6 py-3.5 border-t border-slate-200 bg-page flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between"><div id="r-note" class="text-sm font-semibold text-slate-600"></div>' +
+    '<button type="button" data-action="save-results" class="min-h-[48px] px-6 rounded-xl bg-navy text-white font-semibold text-[15px] disabled:opacity-60"' + (r.saving ? ' disabled' : '') + '>' + (r.saving ? 'Saving…' : 'Save results') + '</button></div>' +
+    '</section><div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-slate-600">' + [['A', '70–100'], ['B', '60–69'], ['C', '50–59'], ['D', '45–49'], ['E', '40–44'], ['F', '0–39']].map(([g, t]) => '<span><strong class="text-ink">' + g + '</strong> ' + t + '</span>').join('') + '</div>';
+  return html;
+}
+// Update one row and the summary without re-rendering (keeps focus while typing)
+function refreshResults() {
+  const r = state.ui.r; if (!r.rows) return;
+  let complete = 0, bad = 0;
+  r.rows.forEach(({ s }) => {
+    const row = document.querySelector('[data-row="' + s.id + '"]'); if (!row) return;
+    const st = rowStatus(r.draft[s.id]);
+    if (st.status === 'Complete') complete++; if (st.bad) bad++;
+    row.querySelectorAll('[data-status]').forEach((el) => { el.textContent = st.status; el.className = el.className.replace(/text-(red|amber|green)-\d+/g, '') + ' ' + st.cls; });
+    row.querySelector('[data-total]').textContent = st.total == null ? '—' : fmt(st.total);
+    const g = row.querySelector('[data-grade]'); g.textContent = st.grade || '—';
+    g.className = 'inline-flex w-10 lg:w-8 h-[42px] lg:h-7 items-center justify-center rounded-lg font-bold ' + (st.pill || 'bg-slate-100 text-slate-400');
+    ['ca', 'exam'].forEach((k) => { const inp = row.querySelector('[data-score="' + k + '"]'); const ss = st[k === 'ca' ? 'ca' : 'ex']; inp.classList.toggle('empty', ss.empty); inp.classList.toggle('bad', !ss.ok); });
+  });
+  const prog = document.getElementById('r-progress');
+  if (prog) { prog.textContent = complete + ' of ' + r.rows.length + ' complete'; prog.className = 'px-3 py-1 rounded-full text-[13px] font-bold ' + (complete === r.rows.length ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'); }
+  const note = document.getElementById('r-note');
+  if (note) { note.textContent = bad ? 'Fix ' + bad + ' score' + (bad === 1 ? '' : 's') + ' in red before saving.' : (r.rows.length - complete) + ' student' + (r.rows.length - complete === 1 ? '' : 's') + ' still need both scores.'; note.className = 'text-sm font-semibold ' + (bad ? 'text-red-700' : 'text-slate-600'); }
+}
+async function saveResults() {
+  const r = state.ui.r;
+  const rows = [], problems = [];
+  r.rows.forEach(({ s }) => {
+    const st = rowStatus(r.draft[s.id]);
+    if (st.bad) problems.push(s.full_name + ': ' + st.status);
+    else if (st.half) problems.push(s.full_name + ': enter both CA and exam');
+    else if (st.status === 'Complete') rows.push({ student_id: s.id, subject_id: r.subjectId, term: r.term, session: r.session, ca_score: st.ca.n, exam_score: st.ex.n });
+  });
+  if (problems.length) return toast('Not saved. ' + problems.slice(0, 3).join('; ') + (problems.length > 3 ? '; and ' + (problems.length - 3) + ' more.' : '.'), false);
+  if (!rows.length) return toast('Nothing to save yet. Enter CA and exam scores first.', false);
+  r.saving = true; render();
+  // Upsert: saving again updates the same row (one per student, subject, term and session)
+  const { error } = await sb.from('results').upsert(rows, { onConflict: 'student_id,subject_id,term,session' });
+  r.saving = false;
+  if (error) { render(); return toast(dbError('Results were not saved.', error), false); }
+  toast('Saved ' + rows.length + ' result' + (rows.length === 1 ? '' : 's') + '.', true);
+  await loadAll(); await loadResultsRows(); render();
+}
+
+/* ---------- Take Attendance ---------- */
+async function loadAttendance() {
+  const a = state.ui.a;
+  const studs = state.students[a.classId] || [];
+  a.loading = true; a.marks = {}; a.saved = {};
+  if (studs.length) {
+    const { data, error } = await sb.from('attendance').select('student_id, status').in('student_id', studs.map((s) => s.id)).eq('date', a.date);
+    if (error) toast(dbError('Could not load the register.', error), false);
+    (data || []).forEach((x) => { a.marks[x.student_id] = x.status; a.saved[x.student_id] = x.status; });
+  }
+  a.loading = false; a.loadedFor = a.classId + '|' + a.date;
+}
+function viewAttendance() {
+  let html = pageHeader('Take Attendance', 'Mark each student present or absent, then save the register.');
+  if (state.error) return html + errorBox();
+  if (!state.classes.length) return html + noAssignments();
+  const a = state.ui.a;
+  if (!classById(a.classId)) a.classId = state.classes[0].id;
+  if (a.loadedFor !== a.classId + '|' + a.date && !a.loading) { loadAttendance().then(() => { if (currentView() === 'attendance') render(); }); }
+  const c = classById(a.classId), studs = state.students[a.classId] || [];
+  const present = studs.filter((s) => a.marks[s.id] === 'present').length, absent = studs.filter((s) => a.marks[s.id] === 'absent').length, unmarked = studs.length - present - absent;
+  const wasSaved = studs.length && studs.every((s) => a.saved[s.id]);
+
+  html += '<section class="' + card + ' p-4 lg:px-6 lg:py-5 grid grid-cols-2 lg:flex lg:items-end gap-3 lg:gap-4 mb-3 lg:mb-5">' +
+    '<div class="lg:flex-1"><label for="a-class" class="block text-[13px] lg:text-sm font-semibold mb-1.5">Class</label><select id="a-class" data-change="a-class" class="field">' + classOptions(a.classId) + '</select></div>' +
+    '<div class="lg:flex-1"><label for="a-date" class="block text-[13px] lg:text-sm font-semibold mb-1.5">Date</label><input id="a-date" data-change="a-date" type="date" max="' + todayISO() + '" value="' + a.date + '" class="field"></div>' +
+    '<button type="button" data-action="all-present" class="col-span-2 lg:flex-none min-h-[46px] px-4 rounded-xl border-[1.5px] border-green-700 bg-green-50 text-green-700 font-semibold text-[15px] inline-flex items-center justify-center gap-2">' + icon('check', 18) + 'Mark all present</button></section>';
+
+  if (a.loading) return html + '<p class="py-10 text-center text-sm text-slate-600">Loading the register…</p>';
+  if (!studs.length) return html + emptyState('No students in ' + escapeHtml(c.name) + ' yet', 'Students appear here once the school office puts them in this class.');
+
+  const statBox = (label, v, cls) => '<div class="' + card + ' rounded-xl lg:rounded-2xl px-3 py-2.5 lg:px-5 lg:py-4"><div class="text-xs lg:text-sm text-slate-600">' + label + '</div><div class="font-display font-extrabold text-[22px] lg:text-[30px] ' + cls + '">' + v + '</div></div>';
+  html += '<section class="grid grid-cols-3 gap-2 lg:gap-4 mb-3 lg:mb-5">' + statBox('Present', present, 'text-green-700') + statBox('Absent', absent, 'text-red-700') + statBox('Not marked', unmarked, 'text-amber-800') + '</section>';
+  html += '<section class="' + card + ' overflow-hidden"><div class="px-4 lg:px-6 py-4 border-b border-slate-200 flex flex-wrap gap-2 justify-between items-center"><h2 class="font-display font-bold text-[17px] lg:text-lg">' + escapeHtml(c.name) + ' register · ' + escapeHtml(formatDate(a.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + '</h2>' + (wasSaved ? '<span class="px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">Saved earlier</span>' : '') + '</div>' +
+    studs.map((s) => { const m = a.marks[s.id];
+      const btn = (v, label, onCls) => '<button type="button" data-action="mark" data-id="' + s.id + '" data-v="' + v + '" aria-pressed="' + (m === v) + '" class="min-h-[44px] lg:min-h-[38px] w-[74px] lg:w-24 rounded-[9px] text-[13px] lg:text-sm font-semibold ' + (m === v ? onCls + ' text-white shadow-sm' : 'text-slate-600') + '">' + label + '</button>';
+      return '<div class="flex items-center gap-3 lg:gap-4 px-3 lg:px-6 py-2.5 border-t border-slate-100"><span class="hidden lg:flex flex-none w-10 h-10 rounded-full bg-navy-tint text-navy items-center justify-center font-bold text-sm">' + escapeHtml(initials(s.full_name)) + '</span><div class="flex-1 min-w-0"><div class="font-semibold text-[15px] truncate">' + escapeHtml(s.full_name) + '</div><div class="text-xs text-slate-600">' + escapeHtml(s.admission_number || '') + '</div></div>' +
+        '<div role="group" aria-label="Attendance for ' + escapeHtml(s.full_name) + '" class="flex-none flex p-[3px] lg:p-1 rounded-[11px] bg-slate-100 gap-[3px] lg:gap-1">' + btn('present', 'Present', 'bg-green-700') + btn('absent', 'Absent', 'bg-red-700') + '</div></div>'; }).join('') +
+    '<div class="sticky bottom-[76px] lg:static px-4 lg:px-6 py-3.5 border-t border-slate-200 bg-page flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between"><div class="text-sm font-semibold ' + (unmarked ? 'text-slate-600' : 'text-green-700') + '">' + (unmarked ? unmarked + ' student' + (unmarked === 1 ? '' : 's') + ' not marked yet.' : 'Everyone is marked. Ready to save.') + '</div>' +
+    '<button type="button" data-action="save-attendance" class="min-h-[48px] px-6 rounded-xl bg-navy text-white font-semibold text-[15px] disabled:opacity-60"' + (a.saving ? ' disabled' : '') + '>' + (a.saving ? 'Saving…' : 'Save register') + '</button></div></section>';
+  return html;
+}
+async function saveAttendance() {
+  const a = state.ui.a, studs = state.students[a.classId] || [];
+  const unmarked = studs.filter((s) => !a.marks[s.id]);
+  if (unmarked.length) return toast('Not saved. Mark all students first: ' + unmarked.slice(0, 3).map((s) => s.full_name).join(', ') + (unmarked.length > 3 ? ' and ' + (unmarked.length - 3) + ' more.' : '.'), false);
+  if (a.date > todayISO()) return toast('Not saved. You cannot take attendance for a future date.', false);
+  a.saving = true; render();
+  // One row per student per date: saving again updates that day's row
+  const rows = studs.map((s) => ({ student_id: s.id, date: a.date, status: a.marks[s.id] }));
+  const { error } = await sb.from('attendance').upsert(rows, { onConflict: 'student_id,date' });
+  a.saving = false;
+  if (error) { render(); return toast(dbError('The register was not saved.', error), false); }
+  const p = rows.filter((x) => x.status === 'present').length;
+  toast('Register saved: ' + p + ' present, ' + (rows.length - p) + ' absent.', true);
+  rows.forEach((x) => { a.saved[x.student_id] = x.status; });
+  await loadAll(); render();
+}
+
+/* ---------- My Classes ---------- */
+function viewClasses() {
+  let html = pageHeader('My Classes', state.classes.length + ' class' + (state.classes.length === 1 ? '' : 'es') + ' · ' + studentCount() + ' students · ' + currentTermText());
+  if (state.error) return html + errorBox();
+  if (!state.classes.length) return html + noAssignments();
+  const u = state.ui.c;
+  if (!classById(u.classId)) u.classId = state.classes[0].id;
+  const c = classById(u.classId);
+  html += '<div role="tablist" aria-label="Class" class="grid gap-2 lg:gap-3 mb-3 lg:mb-5" style="grid-template-columns:repeat(' + Math.min(state.classes.length, 4) + ',minmax(0,1fr))">' +
+    state.classes.map((k) => { const on = k.id === c.id; return '<button type="button" role="tab" aria-selected="' + on + '" data-action="pick-class" data-class="' + k.id + '" class="text-left px-3 lg:px-[18px] py-3 lg:py-4 rounded-[14px] border-[1.5px] ' + (on ? 'bg-navy text-white border-navy shadow-navy' : 'bg-white text-ink border-slate-200') + '"><div class="flex justify-between items-center gap-2"><span class="font-display font-extrabold text-base lg:text-xl">' + escapeHtml(k.name) + '</span><span class="text-xs lg:text-[13px] font-bold">' + (state.students[k.id] || []).length + '</span></div><div class="hidden lg:block text-[13px] mt-1 opacity-85">' + escapeHtml(k.subjects.map((s) => s.name).join(', ')) + '</div></button>'; }).join('') + '</div>';
+  html += '<label class="relative block mb-3 lg:max-w-sm"><span class="absolute left-3 top-3 text-slate-500">' + icon('search', 20) + '</span><input type="search" data-input="c-search" value="' + escapeHtml(u.q) + '" placeholder="Search students" aria-label="Search students" class="field" style="padding-left:40px"></label>';
+  html += '<section class="' + card + ' overflow-hidden" id="class-list">' + classRows(c) + '</section>';
+  return html;
+}
+function classRows(c) {
+  const q = state.ui.c.q.toLowerCase();
+  const all = state.students[c.id] || [];
+  const studs = all.filter((s) => !q || s.full_name.toLowerCase().includes(q) || (s.admission_number || '').toLowerCase().includes(q));
+  const subjIds = c.subjects.map((s) => s.id);
+  if (!all.length) return '<p class="px-6 py-10 text-center text-sm text-slate-600">No students in ' + escapeHtml(c.name) + ' yet.</p>';
+  if (!studs.length) return '<p class="px-6 py-10 text-center text-sm text-slate-600">No students match "' + escapeHtml(state.ui.c.q) + '".</p>';
+  const cols = 'lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]';
+  return '<div class="hidden ' + cols + ' bg-page text-slate-600 text-[13px] font-semibold"><div class="px-6 py-3">Student</div><div class="px-2 py-3">Admission no.</div><div class="px-2 py-3">Parent phone</div><div class="px-2 py-3">Attendance</div><div class="px-2 py-3">My subjects avg</div></div>' +
+    studs.map((s) => {
+      const att = state.attendance.filter((a) => a.student_id === s.id);
+      const pct = att.length ? Math.round(att.filter((a) => a.status === 'present').length / att.length * 100) : null;
+      const res = state.results.filter((r) => r.student_id === s.id && subjIds.includes(r.subject_id));
+      const avg = res.length ? Math.round(res.reduce((n, r) => n + Number(r.ca_score) + Number(r.exam_score), 0) / res.length * 10) / 10 : null;
+      const g = avg == null ? null : gradeFor(avg);
+      const attCls = pct == null ? 'text-slate-500' : pct < 85 ? 'text-red-700' : pct < 92 ? 'text-amber-800' : 'text-green-700';
+      return '<div class="border-t border-slate-100 flex lg:' + cols.slice(3) + ' items-center gap-3 lg:gap-0 px-3.5 lg:px-0 py-3 lg:py-0">' +
+        '<div class="flex-1 min-w-0 lg:px-6 lg:py-3 flex items-center gap-2.5"><span class="flex-none w-9 h-9 rounded-full bg-navy-tint text-navy flex items-center justify-center font-bold text-xs">' + escapeHtml(initials(s.full_name)) + '</span><div class="min-w-0"><div class="font-semibold text-[15px]">' + escapeHtml(s.full_name) + '</div><div class="lg:hidden text-xs text-slate-600">' + escapeHtml(s.admission_number || '') + (s.parent_phone ? ' · ' + escapeHtml(s.parent_phone) : '') + '</div></div></div>' +
+        '<div class="hidden lg:block px-2 text-sm text-slate-700">' + escapeHtml(s.admission_number || '—') + '</div>' +
+        '<div class="hidden lg:block px-2 text-sm text-slate-700">' + escapeHtml(s.parent_phone || '—') + '</div>' +
+        '<div class="text-right lg:text-left lg:px-2 text-sm font-semibold ' + attCls + '"><span class="lg:hidden block text-sm font-bold text-ink">' + (g ? '<span class="text-[11px] px-1.5 py-0.5 rounded-md ' + g.pill + '">' + g.grade + '</span> ' + fmt(avg) : '—') + '</span>' + (pct == null ? 'No register yet' : pct + '%') + '</div>' +
+        '<div class="hidden lg:block px-2 text-sm">' + (g ? '<strong>' + fmt(avg) + '</strong> <span class="text-xs font-bold px-1.5 py-0.5 rounded-md ' + g.pill + '">' + g.grade + '</span>' : '<span class="text-slate-500">No results yet</span>') + '</div></div>';
+    }).join('');
+}
+
+/* ---------- Rendering ---------- */
+const RENDER = { dashboard: viewDashboard, results: viewResults, attendance: viewAttendance, classes: viewClasses };
+const currentView = () => { const v = location.hash.replace('#', ''); return RENDER[v] ? v : 'dashboard'; };
+function renderChrome(view) {
+  document.getElementById('side-nav').innerHTML = Object.keys(VIEWS).map((k) => { const on = k === view;
+    return '<a href="#' + k + '"' + (on ? ' aria-current="page"' : '') + ' class="flex items-center gap-3 min-h-[44px] px-3 rounded-[10px] text-[15px] ' + (on ? 'bg-white/[0.14] text-white font-semibold' : 'text-slate-300 font-medium hover:bg-white/10 hover:text-white') + '">' + icon(k, 20, on ? 'style="color:#D4A017"' : '') + VIEWS[k] + '</a>'; }).join('');
+  document.getElementById('bottom-nav').innerHTML = Object.keys(VIEWS).map((k) => { const on = k === view;
+    return '<a href="#' + k + '"' + (on ? ' aria-current="page"' : '') + ' class="flex flex-col items-center justify-center gap-[3px] min-h-[52px] text-xs ' + (on ? 'text-navy font-bold' : 'text-slate-600 font-medium') + '"><span class="w-[52px] h-[30px] rounded-full flex items-center justify-center ' + (on ? 'bg-navy-soft' : '') + '">' + icon(k, 20) + '</span>' + SHORT[k] + '</a>'; }).join('');
+  const name = (state.profile && state.profile.full_name) || state.user.email;
+  document.querySelectorAll('[data-bind="initials"]').forEach((el) => { el.textContent = initials(name); });
+  document.querySelectorAll('[data-bind="name"]').forEach((el) => { el.textContent = name; });
+  document.getElementById('m-title').textContent = VIEWS[view];
+  document.getElementById('m-sub').textContent = 'Teacher · ' + TERM_NAMES[SCHOOL.currentTerm] + ' ' + SCHOOL.currentSession;
+  document.title = VIEWS[view] + ' — Crestfield College';
+}
+function render(scrollTop) {
+  const view = currentView();
+  renderChrome(view);
+  document.getElementById('view').innerHTML = RENDER[view]();
+  if (view === 'results') refreshResults();
+  if (scrollTop) window.scrollTo(0, 0);
+}
+
+/* ---------- Events ---------- */
+window.addEventListener('hashchange', () => render(true));
+document.addEventListener('click', async (e) => {
+  const el = e.target.closest('[data-action]'); if (!el) return;
+  const act = el.dataset.action;
+  if (act === 'logout') { if (confirm('Log out of the teacher portal?')) signOut(); return; }
+  if (act === 'retry') { await loadAll(); return render(); }
+  if (act === 'open-results') { Object.assign(state.ui.r, { classId: el.dataset.class, subjectId: el.dataset.subject, rows: null }); location.hash = 'results'; return; }
+  if (act === 'open-attendance') { state.ui.a.classId = el.dataset.class; state.ui.a.date = todayISO(); location.hash = 'attendance'; return; }
+  if (act === 'open-class' || act === 'pick-class') { state.ui.c.classId = el.dataset.class; state.ui.c.q = ''; if (location.hash !== '#classes') location.hash = 'classes'; else render(); return; }
+  if (act === 'save-results') return saveResults();
+  if (act === 'mark') { const m = state.ui.a.marks; m[el.dataset.id] = m[el.dataset.id] === el.dataset.v ? undefined : el.dataset.v; return render(); }
+  if (act === 'all-present') { (state.students[state.ui.a.classId] || []).forEach((s) => { state.ui.a.marks[s.id] = 'present'; }); return render(); }
+  if (act === 'save-attendance') return saveAttendance();
+});
+document.addEventListener('change', (e) => {
+  const k = e.target.dataset.change; if (!k) return;
+  const r = state.ui.r, a = state.ui.a;
+  if (k === 'r-class') { r.classId = e.target.value; r.subjectId = null; r.rows = null; }
+  if (k === 'r-subject') { r.subjectId = e.target.value; r.rows = null; }
+  if (k === 'r-term') { r.term = Number(e.target.value); r.rows = null; }
+  if (k === 'r-session') { r.session = e.target.value; r.rows = null; }
+  if (k === 'a-class') { a.classId = e.target.value; a.loadedFor = null; }
+  if (k === 'a-date') { a.date = e.target.value || todayISO(); a.loadedFor = null; }
+  render();
+});
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (t.dataset.score) { state.ui.r.draft[t.dataset.id][t.dataset.score] = t.value.trim(); refreshResults(); return; }
+  if (t.dataset.input === 'c-search') { state.ui.c.q = t.value; const c = classById(state.ui.c.classId); document.getElementById('class-list').innerHTML = classRows(c); }
+});
+sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.replace('login.html'); });
+
+(async function start() {
+  mountCrests();
+  const user = await requireRole('teacher');
+  if (!user) return;
+  state.user = user;
+  await loadAll();
+  document.getElementById('boot').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  mountCrests();
+  render();
+})();
+</script>
+</body>
+</html>

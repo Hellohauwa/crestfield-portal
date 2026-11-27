@@ -150,7 +150,9 @@
       btn.disabled = false; btn.textContent = 'Log in';
       return show(err, friendlyAuthError(error), 'text-red-700');
     }
-    window.location.replace('portal.html');
+    // Students → portal.html, teachers → teacher.html, admins → admin.html
+    const role = await getRole();
+    window.location.replace(dashboardFor(role));
   });
 
   // Forgot password — same message whether or not the email has an account

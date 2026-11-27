@@ -135,13 +135,37 @@ function friendlyAuthError(error) {
   return msg || 'Something went wrong. Please try again.';
 }
 
-// Send logged-in users straight to the portal (used on login/sign-up pages)
-async function redirectIfLoggedIn() {
-  const { data } = await sb.auth.getSession();
-  if (data.session) window.location.replace('portal.html');
+// ---- Roles ----
+const ROLE_HOME = { student: 'portal.html', teacher: 'teacher.html', admin: 'admin.html' };
+function dashboardFor(role) { return ROLE_HOME[role] || 'portal.html'; }
+
+// The logged-in user's role from user_roles: 'student' | 'teacher' | 'admin' | null (not logged in)
+async function getRole() {
+  const { data: s } = await sb.auth.getSession();
+  if (!s.session) return null;
+  const { data, error } = await sb.from('user_roles').select('role').eq('user_id', s.session.user.id).maybeSingle();
+  if (error) { console.error('getRole:', error.message); return 'student'; }
+  return (data && data.role) || 'student';
 }
 
-// Send anyone not logged in to the login page (used on the portal)
+// Use at the top of each dashboard. Not logged in → login.html.
+// Logged in with a different role → that role's own dashboard.
+// Returns the user when the role matches, otherwise null.
+async function requireRole(role) {
+  const { data } = await sb.auth.getSession();
+  if (!data.session) { window.location.replace('login.html'); return null; }
+  const actual = await getRole();
+  if (actual !== role) { window.location.replace(dashboardFor(actual)); return null; }
+  return data.session.user;
+}
+
+// Send logged-in users to their dashboard (used on login/sign-up pages)
+async function redirectIfLoggedIn() {
+  const role = await getRole();
+  if (role) window.location.replace(dashboardFor(role));
+}
+
+// Send anyone not logged in to the login page
 async function requireUser() {
   const { data } = await sb.auth.getSession();
   if (!data.session) {
@@ -159,3 +183,29 @@ async function signOut() {
 function pageUrl(file) {
   return new URL(file, window.location.href).href;
 }
+
+// ---- Save messages ----
+// toast('Saved', true) or toast('Could not save: ' + error.message, false)
+function toast(message, ok) {
+  let box = document.getElementById('toast-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'toast-box';
+    box.setAttribute('aria-live', 'polite');
+    box.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:60;display:flex;flex-direction:column;gap:8px;width:min(92vw,460px)';
+    document.body.appendChild(box);
+  }
+  const el = document.createElement('div');
+  el.setAttribute('role', ok ? 'status' : 'alert');
+  el.style.cssText = 'padding:12px 16px;border-radius:12px;font:600 14px/1.45 Inter,sans-serif;box-shadow:0 12px 32px rgba(15,23,42,0.18);' +
+    (ok ? 'background:#F0FDF4;color:#166534;border:1px solid #BBF7D0' : 'background:#FEF2F2;color:#991B1B;border:1px solid #FECACA');
+  el.textContent = message;
+  box.appendChild(el);
+  setTimeout(() => el.remove(), ok ? 4000 : 9000);
+}
+function dbError(prefix, error) {
+  return prefix + (error && error.message ? ' The database said: ' + error.message : '');
+}
+
+// Current term label, e.g. "1st Term, 2026/2027"
+function currentTermText() { return TERM_NAMES[SCHOOL.currentTerm] + ', ' + SCHOOL.currentSession; }

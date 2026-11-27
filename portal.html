@@ -682,7 +682,8 @@ sb.auth.onAuthStateChange((event) => {
 /* ---------- Start ---------- */
 (async function start() {
   mountCrests();
-  const user = await requireUser();
+  // Students only. Teachers go to teacher.html, admins to admin.html.
+  const user = await requireRole('student');
   if (!user) return;
   state.user = user;
   await loadAll();

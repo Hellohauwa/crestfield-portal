@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Portal — Crestfield College</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    .field{width:100%;height:46px;padding:0 12px;border:1.5px solid #CBD5E1;border-radius:10px;font:15px Inter,sans-serif;color:#0F172A;background:#fff}
+    textarea.field{height:auto;padding:12px;line-height:1.5;resize:vertical}
+    .field:focus{outline:3px solid #BFDBFE;border-color:#1E3A8A}
+    .tnum{font-variant-numeric:tabular-nums}
+    .lbl{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+  </style>
+</head>
+<body class="bg-page font-sans text-ink antialiased">
+
+<div id="boot" class="min-h-screen flex flex-col items-center justify-center gap-4 text-slate-600">
+  <span data-crest="48"></span><p class="text-sm font-medium">Loading the admin portal…</p>
+</div>
+
+<div id="app" class="hidden min-h-screen lg:flex">
+  <aside class="hidden lg:flex w-[248px] flex-none bg-navy text-white px-4 py-6 flex-col gap-7 sticky top-0 h-screen overflow-y-auto">
+    <div class="flex items-center gap-2.5 px-2">
+      <span data-crest="34"></span>
+      <div><div class="font-display font-extrabold text-[17px]">Crestfield College</div><span class="inline-block mt-0.5 px-2 py-0.5 rounded-full bg-white text-navy text-[11px] font-bold">Admin Portal</span></div>
+    </div>
+    <nav aria-label="Main" id="side-nav" class="flex flex-col gap-1"></nav>
+    <div class="mt-auto border-t border-white/15 pt-4 px-2 flex items-center gap-2.5">
+      <div class="flex-none w-10 h-10 rounded-full bg-white text-navy flex items-center justify-center font-bold text-[15px]" data-bind="initials"></div>
+      <div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate" data-bind="name"></div><div class="text-xs text-indigo-200">Admin</div></div>
+      <button type="button" data-action="logout" aria-label="Log out" title="Log out" class="flex items-center justify-center w-11 h-11 rounded-[10px] text-slate-300 hover:bg-white/10 hover:text-white">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div class="flex-1 min-w-0 flex flex-col">
+    <header class="lg:hidden sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2.5">
+      <span data-crest="28"></span>
+      <div class="flex-1 min-w-0"><h1 id="m-title" class="font-display font-bold text-lg leading-tight"></h1><div id="m-sub" class="text-xs text-slate-600"></div></div>
+      <button type="button" data-action="logout" aria-label="Log out" class="w-11 h-11 rounded-full bg-navy text-white flex items-center justify-center font-bold text-[15px]" data-bind="initials"></button>
+    </header>
+    <div id="more-tabs" class="lg:hidden hidden bg-white border-b border-slate-200 px-2 grid grid-cols-2"></div>
+    <main id="view" class="flex-1 w-full max-w-[1120px] p-4 lg:px-10 lg:py-8 pb-28 lg:pb-8"></main>
+  </div>
+
+  <nav aria-label="Main" id="bottom-nav" class="lg:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-slate-200 px-1 pt-1.5 pb-3.5 grid grid-cols-5 shadow-[0_-4px_12px_rgba(15,23,42,0.05)]"></nav>
+</div>
+
+<script>
+const ICON = {
+  dashboard: 'M3 10.5L12 3l9 7.5M5 9v11h5v-6h4v6h5V9',
+  students: 'M22 10L12 5 2 10l10 5 10-5zM6 12v5c3 2 9 2 12 0v-5',
+  teachers: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM17 11l2 2 4-4',
+  classes: 'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 21V5M8 7h7',
+  fees: 'M3 7h15a3 3 0 013 3v7a3 3 0 01-3 3H3zM3 7V5a2 2 0 012-2h11M17 14h.01',
+  announcements: 'M3 11v2a1 1 0 001 1h3l7 4V6L7 10H4a1 1 0 00-1 1zM18 9a3 3 0 010 6',
+  more: 'M4 6h16M4 12h16M4 18h16', info: 'M12 8v5M12 16h.01M12 21a9 9 0 110-18 9 9 0 010 18z',
+  search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-4.3-4.3', close: 'M6 6l12 12M18 6L6 18', promote: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6'
+};
+const icon = (n, s, extra) => '<svg width="' + (s || 20) + '" height="' + (s || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ' + (extra || '') + '><path d="' + ICON[n] + '"/></svg>';
+const VIEWS = { dashboard: 'Dashboard', students: 'Students', teachers: 'Teachers', classes: 'Classes & Subjects', fees: 'Fees', announcements: 'Announcements' };
+const BOTTOM = [['dashboard', 'Home', 'dashboard'], ['students', 'Students', 'students'], ['fees', 'Fees', 'fees'], ['announcements', 'Notices', 'announcements'], ['teachers', 'More', 'more']];
+const card = 'bg-white border border-slate-200 rounded-2xl shadow-card';
+const btnPrimary = 'min-h-[46px] px-5 rounded-xl bg-navy text-white font-semibold text-[15px] disabled:opacity-60';
+const btnGhost = 'min-h-[46px] px-4 rounded-xl border border-slate-300 bg-white text-slate-700 font-semibold text-[15px]';
+const btnSmall = 'min-h-[38px] lg:min-h-[36px] px-3 rounded-[9px] border border-slate-300 bg-white text-navy font-semibold text-[13px]';
+const btnDanger = 'min-h-[38px] lg:min-h-[36px] px-3 rounded-[9px] border border-red-200 bg-white text-red-700 font-semibold text-[13px]';
+
+const state = {
+  user: null, me: null, error: null,
+  roles: {}, profiles: [], classes: [], subjects: [], fees: [], announcements: [], assignments: [],
+  ui: {
+    s: { q: '', cls: 'all', edit: null },
+    t: { sel: null, email: '', cls: '', subj: [] },
+    cs: { editKind: null, editId: null, editVal: '', newClass: '', newSubject: '' },
+    f: { q: '', cls: 'all', owing: false, sel: null, mode: null, amount: '', bulk: '' },
+    n: { editId: null, title: '', body: '', confirm: null },
+    busy: false
+  }
+};
+
+/* ---------- Data ---------- */
+async function loadAll() {
+  state.error = null;
+  const q = await Promise.all([
+    sb.from('user_roles').select('user_id, role'),
+    sb.from('profiles').select('id, full_name, email, admission_number, parent_phone, class_id').order('full_name'),
+    sb.from('classes').select('id, name').order('name'),
+    sb.from('subjects').select('id, name').order('name'),
+    sb.from('fees').select('id, student_id, term, session, amount_due, amount_paid').eq('term', SCHOOL.currentTerm).eq('session', SCHOOL.currentSession),
+    sb.from('announcements').select('id, title, body, created_at').order('created_at', { ascending: false }),
+    sb.from('teacher_assignments').select('id, teacher_id, class_id, subject_id')
+  ]);
+  const bad = q.find((x) => x.error);
+  if (bad) { state.error = bad.error.message; return; }
+  state.roles = {}; q[0].data.forEach((r) => { state.roles[r.user_id] = r.role; });
+  [state.profiles, state.classes, state.subjects, state.fees, state.announcements, state.assignments] = q.slice(1).map((x) => x.data || []);
+  state.me = state.profiles.find((p) => p.id === state.user.id) || null;
+}
+const roleOf = (id) => state.roles[id] || 'student';
+const students = () => state.profiles.filter((p) => roleOf(p.id) === 'student');
+const teachers = () => state.profiles.filter((p) => roleOf(p.id) === 'teacher');
+const className = (id) => { const c = state.classes.find((x) => x.id === id); return c ? c.name : ''; };
+const subjectName = (id) => { const s = state.subjects.find((x) => x.id === id); return s ? s.name : ''; };
+const feeOf = (sid) => state.fees.find((f) => f.student_id === sid) || null;
+const naira = (n) => formatNaira(n);
+const termPill = () => '<span class="px-3.5 py-2 rounded-full text-sm font-semibold bg-white border border-slate-200 text-navy">' + TERM_NAMES[SCHOOL.currentTerm] + ' · ' + SCHOOL.currentSession + '</span>';
+
+/* ---------- Shared pieces ---------- */
+function pageHeader(title, sub, right) {
+  return '<div class="hidden lg:flex flex-wrap gap-3 items-center justify-between mb-6"><div><h1 class="font-display font-bold text-[28px]">' + title + '</h1><div class="text-sm text-slate-600 mt-0.5">' + sub + '</div></div>' + (right || '') + '</div>';
+}
+function errorBox() {
+  return '<div class="bg-white border border-red-200 rounded-2xl px-6 py-10 text-center"><h2 class="font-display font-bold text-lg mb-1.5">Something went wrong.</h2><p class="text-sm text-slate-600 mb-5">' + escapeHtml(state.error) + '</p><button type="button" data-action="retry" class="' + btnPrimary + '">Try again</button></div>';
+}
+const searchBox = (key, val, ph) => '<label class="relative block flex-[2_1_240px]"><span class="absolute left-3 top-3 text-slate-500">' + icon('search', 20) + '</span><input type="search" data-input="' + key + '" value="' + escapeHtml(val) + '" placeholder="' + ph + '" aria-label="' + ph + '" class="field" style="padding-left:40px;height:44px"></label>';
+const classSelect = (key, val, extra) => '<select data-change="' + key + '" aria-label="Filter by class" class="field flex-[1_1_160px]" style="height:44px">' + (extra || '') + state.classes.map((c) => '<option value="' + c.id + '"' + (c.id === val ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>').join('') + '</select>';
+// Panel: side panel on desktop, bottom sheet on phone
+function panel(inner, closeAction) {
+  return '<div class="fixed inset-0 z-30 bg-ink/45 lg:hidden" data-action="' + closeAction + '"></div>' +
+    '<section class="fixed inset-x-0 bottom-0 z-40 max-h-[85vh] overflow-y-auto rounded-t-[22px] lg:rounded-2xl lg:static lg:z-auto lg:max-h-none lg:overflow-visible lg:flex-1 lg:basis-[320px] lg:min-w-0 bg-white lg:border-[1.5px] lg:border-navy p-5 pb-8 lg:p-[22px] shadow-[0_-12px_32px_rgba(15,23,42,0.2)] lg:shadow-lift" role="dialog">' +
+    '<div class="lg:hidden w-10 h-[5px] rounded-full bg-slate-300 mx-auto mb-3"></div>' + inner + '</section>';
+}
+const closeBtn = (action) => '<button type="button" data-action="' + action + '" aria-label="Close" class="flex-none w-11 h-11 lg:w-9 lg:h-9 rounded-[10px] bg-slate-100 text-slate-600 flex items-center justify-center">' + icon('close', 16) + '</button>';
+
+/* ---------- Dashboard ---------- */
+function viewDashboard() {
+  const name = (state.me && state.me.full_name) || state.user.email;
+  let html = pageHeader('Dashboard', 'Welcome, ' + escapeHtml(name) + ' · ' + escapeHtml(formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })), termPill());
+  if (state.error) return html + errorBox();
+  const studs = students(), noClass = studs.filter((s) => !s.class_id).length;
+  let due = 0, paid = 0, outstanding = 0, owing = 0;
+  studs.forEach((s) => { const f = feeOf(s.id); if (!f) return; due += f.amount_due; paid += f.amount_paid; const b = f.amount_due - f.amount_paid; if (b > 0) { outstanding += b; owing++; } });
+  const noFee = studs.filter((s) => !feeOf(s.id)).length;
+  const pct = due ? Math.round(paid / due * 100) : 0;
+  const stat = (href, label, value, note, iconName, bg) => '<a href="' + href + '" class="' + card + ' p-4 lg:p-5 text-ink flex gap-4 items-center hover:border-navy/30"><span class="hidden lg:flex flex-none w-[52px] h-[52px] rounded-[14px] items-center justify-center ' + bg + '">' + icon(iconName, 26) + '</span><div><div class="text-[13px] lg:text-sm text-slate-600 font-medium">' + label + '</div><div class="font-display font-extrabold text-2xl lg:text-[32px] leading-tight">' + value + '</div><div class="text-xs lg:text-[13px] font-semibold ' + (note.cls || 'text-slate-600') + '">' + note.t + '</div></div></a>';
+  html += '<section class="grid grid-cols-3 gap-2 lg:gap-4 mb-4 lg:mb-6">' +
+    stat('#students', 'Students', studs.length, noClass ? { t: noClass + ' need a class', cls: 'text-amber-800' } : { t: 'All in a class' }, 'students', 'bg-navy-soft text-navy') +
+    stat('#teachers', 'Teachers', teachers().length, { t: state.assignments.length + ' assignments' }, 'teachers', 'bg-green-100 text-green-700') +
+    stat('#classes', 'Classes', state.classes.length, { t: state.subjects.length + ' subjects' }, 'classes', 'bg-gold-soft text-gold-ink') + '</section>';
+  html += '<section class="bg-navy text-white rounded-[20px] p-5 lg:px-[30px] lg:py-[26px] shadow-navy mb-4 lg:mb-6">' +
+    '<div class="flex flex-wrap justify-between items-center gap-3 mb-4"><h2 class="font-display font-bold text-lg lg:text-xl">Fees this term</h2><a href="#fees" class="inline-flex items-center min-h-[40px] px-4 rounded-[10px] bg-gold text-ink font-semibold text-sm">Record a payment</a></div>' +
+    '<div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4"><div><div class="text-[13px] lg:text-sm text-indigo-200">Collected</div><div class="font-display font-extrabold text-2xl lg:text-[32px]">' + naira(paid) + '</div></div><div><div class="text-[13px] lg:text-sm text-indigo-200">Outstanding</div><div class="font-display font-extrabold text-2xl lg:text-[32px] text-gold-light">' + naira(outstanding) + '</div></div><div class="col-span-2 lg:col-span-1"><div class="text-[13px] lg:text-sm text-indigo-200">Total due</div><div class="font-display font-extrabold text-2xl lg:text-[32px]">' + naira(due) + '</div></div></div>' +
+    '<div class="h-3 rounded-full bg-white/20"><div class="h-3 rounded-full bg-gold" style="width:' + pct + '%"></div></div>' +
+    '<div class="flex flex-wrap justify-between gap-2 mt-2 text-[13px] text-indigo-200"><span>' + pct + '% collected</span><span>' + owing + ' owing' + (noFee ? ' · ' + noFee + ' with no fee set' : '') + '</span></div></section>';
+  const latest = state.announcements.slice(0, 3);
+  html += '<section class="' + card + ' px-4 lg:px-6 pt-1 lg:pt-2 pb-3"><div class="flex justify-between items-center"><h2 class="font-display font-bold text-[17px] lg:text-lg">Latest announcements</h2><a href="#announcements" class="inline-flex items-center min-h-[48px] text-sm font-semibold text-navy">Manage</a></div>' +
+    (latest.length ? latest.map((n) => '<div class="py-3 border-t border-slate-100"><div class="text-xs font-semibold text-slate-600 mb-0.5">' + formatDate(n.created_at) + '</div><div class="font-semibold text-[15px]">' + escapeHtml(n.title) + '</div></div>').join('') : '<p class="py-4 border-t border-slate-100 text-sm text-slate-600">No announcements yet.</p>') + '</section>';
+  return html;
+}
+
+/* ---------- Students ---------- */
+function viewStudents() {
+  const u = state.ui.s;
+  const all = students();
+  let html = pageHeader('Students', all.length + ' students · students create their own accounts at sign-up', '');
+  if (state.error) return html + errorBox();
+  const q = u.q.toLowerCase();
+  const list = all.filter((s) => (u.cls === 'all' || (u.cls === 'none' ? !s.class_id : s.class_id === u.cls)) && (!q || s.full_name.toLowerCase().includes(q) || (s.admission_number || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q)));
+  html += '<div class="flex flex-wrap gap-2.5 lg:gap-3 mb-3 lg:mb-5">' + searchBox('s-q', u.q, 'Search name, email or admission number') + classSelect('s-cls', u.cls, '<option value="all">All classes</option><option value="none"' + (u.cls === 'none' ? ' selected' : '') + '>Needs a class</option>') + '</div>';
+  const cols = 'lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_80px]';
+  let table = '<section class="' + card + ' overflow-hidden lg:flex-[999_1_520px] min-w-0">';
+  if (!all.length) table += '<p class="px-6 py-10 text-center text-sm text-slate-600">No students have signed up yet.</p>';
+  else if (!list.length) table += '<p class="px-6 py-10 text-center text-sm text-slate-600">No students match your search.</p>';
+  else table += '<div class="hidden ' + cols + ' bg-page text-slate-600 text-[13px] font-semibold"><div class="px-5 py-3">Student</div><div class="px-2 py-3">Class</div><div class="px-2 py-3">Parent phone</div><div class="px-5 py-3"></div></div>' +
+    list.map((s) => '<div class="border-t border-slate-100 flex ' + cols.replace('lg:grid ', 'lg:grid ') + ' items-center gap-2.5 px-3.5 lg:px-0 py-2.5 lg:py-0 ' + (u.edit && u.edit.id === s.id ? 'bg-[#F5F7FF]' : '') + '">' +
+      '<div class="flex-1 min-w-0 lg:px-5 lg:py-2.5"><div class="font-semibold text-[15px] truncate">' + escapeHtml(s.full_name) + '</div><div class="text-xs text-slate-600 truncate">' + escapeHtml(s.admission_number || 'No admission number') + ' · ' + escapeHtml(s.email || '') + '</div><div class="lg:hidden mt-1"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ' + (s.class_id ? 'bg-navy-tint text-navy' : 'bg-amber-100 text-amber-800') + '">' + (s.class_id ? escapeHtml(className(s.class_id)) : 'Needs a class') + '</span></div></div>' +
+      '<div class="hidden lg:block px-2"><span class="px-2.5 py-1 rounded-full text-[13px] font-semibold ' + (s.class_id ? 'bg-navy-tint text-navy' : 'bg-amber-100 text-amber-800') + '">' + (s.class_id ? escapeHtml(className(s.class_id)) : 'Needs a class') + '</span></div>' +
+      '<div class="hidden lg:block px-2 text-sm text-slate-700">' + escapeHtml(s.parent_phone || '—') + '</div>' +
+      '<div class="flex-none lg:px-5 text-right"><button type="button" data-action="s-edit" data-id="' + s.id + '" class="' + btnSmall + ' min-h-[44px]">Edit</button></div></div>').join('');
+  table += '</section>';
+  let side = '';
+  if (u.edit) {
+    const e = u.edit;
+    side = panel('<div class="flex justify-between items-start gap-3 mb-4"><div><div class="text-[13px] text-slate-600 font-semibold">Edit student</div><h2 class="font-display font-bold text-xl mt-0.5">' + escapeHtml(e.full_name) + '</h2><div class="text-[13px] text-slate-600 break-all">' + escapeHtml(e.email || '') + '</div></div>' + closeBtn('s-close') + '</div>' +
+      '<label class="lbl" for="e-class">Class</label><select id="e-class" data-edit="class_id" class="field mb-3.5"><option value="">No class</option>' + state.classes.map((c) => '<option value="' + c.id + '"' + (c.id === e.class_id ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>').join('') + '</select>' +
+      '<label class="lbl" for="e-adm">Admission number</label><input id="e-adm" data-edit="admission_number" value="' + escapeHtml(e.admission_number || '') + '" placeholder="e.g. CFC/2026/0313" class="field mb-3.5">' +
+      '<label class="lbl" for="e-phone">Parent phone</label><input id="e-phone" type="tel" data-edit="parent_phone" value="' + escapeHtml(e.parent_phone || '') + '" class="field">' +
+      '<div class="flex gap-2.5 mt-5"><button type="button" data-action="s-save" class="flex-1 ' + btnPrimary + '"' + (state.ui.busy ? ' disabled' : '') + '>' + (state.ui.busy ? 'Saving…' : 'Save changes') + '</button><button type="button" data-action="s-close" class="' + btnGhost + '">Cancel</button></div>', 's-close');
+  }
+  return html + '<div class="flex flex-wrap gap-5 items-start">' + table + side + '</div>';
+}
+async function saveStudent() {
+  const e = state.ui.s.edit;
+  const adm = (e.admission_number || '').trim().toUpperCase();
+  const patch = { class_id: e.class_id || null, admission_number: adm || null, parent_phone: (e.parent_phone || '').trim() || null, updated_at: new Date().toISOString() };
+  state.ui.busy = true; render();
+  const { error } = await sb.from('profiles').update(patch).eq('id', e.id);
+  state.ui.busy = false;
+  if (error) { render(); return toast(dbError(e.full_name + ' was not saved.', error), false); }
+  toast(e.full_name + ' saved' + (patch.class_id ? ': ' + className(patch.class_id) : '') + '.', true);
+  state.ui.s.edit = null; await loadAll(); render();
+}
+
+/* ---------- Teachers ---------- */
+function viewTeachers() {
+  const u = state.ui.t;
+  const list = teachers();
+  let html = pageHeader('Teachers', list.length + ' teacher' + (list.length === 1 ? '' : 's') + ' · assign the classes and subjects each one teaches');
+  if (state.error) return html + errorBox();
+  html += '<section class="' + card + ' p-4 lg:p-5 mb-3 lg:mb-5"><h2 class="font-display font-bold text-[17px] mb-1">Promote a user to teacher</h2><p class="text-[13px] text-slate-600 mb-3">The new teacher signs up first. Then enter the email they signed up with.</p>' +
+    '<div class="flex flex-col sm:flex-row gap-2.5"><input type="email" data-input="t-email" value="' + escapeHtml(u.email) + '" placeholder="teacher@example.com" aria-label="Email of the user to promote" class="field flex-1"><button type="button" data-action="t-promote" class="' + btnPrimary + ' inline-flex items-center justify-center gap-2"' + (state.ui.busy ? ' disabled' : '') + '>' + icon('promote', 18) + 'Make teacher</button></div></section>';
+  let left = '<section class="flex flex-col gap-2.5 lg:flex-[999_1_480px] min-w-0">';
+  if (!list.length) left += '<div class="' + card + ' px-6 py-10 text-center text-sm text-slate-600">No teachers yet. Promote a user above.</div>';
+  left += list.map((t) => {
+    const as = state.assignments.filter((a) => a.teacher_id === t.id);
+    const sel = u.sel === t.id;
+    return '<div class="bg-white rounded-[14px] px-4 lg:px-[18px] py-3.5 shadow-card ' + (sel ? 'border-[1.5px] border-navy' : 'border border-slate-200') + '"><div class="flex gap-3 items-start">' +
+      '<span class="hidden lg:flex flex-none w-[42px] h-[42px] rounded-full bg-navy-tint text-navy items-center justify-center font-bold text-sm">' + escapeHtml(initials(t.full_name)) + '</span>' +
+      '<div class="flex-1 min-w-0"><div class="font-bold text-[15px]">' + escapeHtml(t.full_name) + (as.length ? '' : ' <span class="ml-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">Not assigned yet</span>') + '</div><div class="text-[13px] text-slate-600 break-all">' + escapeHtml(t.email || '') + '</div>' +
+      '<div class="flex flex-wrap gap-1.5 mt-2">' + (as.length ? as.map((a) => '<span class="px-2.5 py-1 rounded-full bg-navy-tint text-navy text-xs font-semibold">' + escapeHtml(className(a.class_id)) + ' · ' + escapeHtml(subjectName(a.subject_id)) + '</span>').join('') : '<span class="text-xs text-slate-500">No classes or subjects yet</span>') + '</div></div>' +
+      '<button type="button" data-action="t-pick" data-id="' + t.id + '" class="' + btnSmall + ' min-h-[44px] flex-none">Assign</button></div></div>';
+  }).join('') + '</section>';
+  let side = '';
+  const t = list.find((x) => x.id === u.sel);
+  if (t) {
+    const as = state.assignments.filter((a) => a.teacher_id === t.id);
+    side = panel('<div class="flex justify-between items-start gap-3 mb-4"><div><div class="text-[13px] text-slate-600 font-semibold">Assign classes and subjects</div><h2 class="font-display font-bold text-xl mt-0.5">' + escapeHtml(t.full_name) + '</h2></div>' + closeBtn('t-close') + '</div>' +
+      '<div class="text-sm font-semibold mb-2">Current assignments</div><div class="flex flex-wrap gap-1.5 mb-5">' + (as.length ? as.map((a) => '<span class="inline-flex items-center gap-1 pl-3 pr-1 py-1 rounded-full bg-navy-tint text-navy text-[13px] font-semibold">' + escapeHtml(className(a.class_id)) + ' · ' + escapeHtml(subjectName(a.subject_id)) + '<button type="button" data-action="t-unassign" data-id="' + a.id + '" aria-label="Remove ' + escapeHtml(className(a.class_id) + ' ' + subjectName(a.subject_id)) + '" class="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white">' + icon('close', 12) + '</button></span>').join('') : '<span class="text-[13px] text-slate-500">None yet</span>') + '</div>' +
+      '<label class="lbl" for="t-class">Add: class</label><select id="t-class" data-change="t-cls" class="field mb-3"><option value="">Choose a class</option>' + state.classes.map((c) => '<option value="' + c.id + '"' + (c.id === u.cls ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>').join('') + '</select>' +
+      '<div class="lbl">Subjects in this class</div><div class="flex flex-wrap gap-1.5 mb-5">' + state.subjects.map((s) => { const on = u.subj.includes(s.id); const has = u.cls && as.some((a) => a.class_id === u.cls && a.subject_id === s.id);
+        return '<button type="button" data-action="t-subj" data-id="' + s.id + '" aria-pressed="' + on + '"' + (has ? ' disabled' : '') + ' class="min-h-[38px] px-3 rounded-full text-[13px] font-semibold border ' + (has ? 'border-slate-200 bg-slate-100 text-slate-400' : on ? 'border-navy bg-navy text-white' : 'border-slate-300 bg-white text-slate-700') + '">' + escapeHtml(s.name) + (has ? ' ✓' : '') + '</button>'; }).join('') + '</div>' +
+      '<button type="button" data-action="t-assign" class="w-full ' + btnPrimary + '"' + (state.ui.busy ? ' disabled' : '') + '>Add assignments</button>', 't-close');
+  }
+  return html + '<div class="flex flex-wrap gap-5 items-start">' + left + side + '</div>';
+}
+async function promoteTeacher() {
+  const email = state.ui.t.email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('Enter the full email address the teacher signed up with.', false);
+  const p = state.profiles.find((x) => (x.email || '').toLowerCase() === email);
+  if (!p) return toast('No account found for ' + email + '. Ask them to sign up first, then try again.', false);
+  const role = roleOf(p.id);
+  if (role === 'teacher') return toast(p.full_name + ' is already a teacher.', false);
+  if (role === 'admin') return toast(p.full_name + ' is an admin. Change admins in the Supabase dashboard.', false);
+  if (!confirm('Make ' + p.full_name + ' (' + email + ') a teacher? They will lose access to the student portal.')) return;
+  state.ui.busy = true; render();
+  const r = await sb.from('user_roles').update({ role: 'teacher' }).eq('user_id', p.id).select('user_id');
+  if (r.error || !r.data || !r.data.length) { state.ui.busy = false; render(); return toast(dbError(p.full_name + ' was not promoted.', r.error || { message: 'No role row was updated.' }), false); }
+  // Teachers are not in a class, so clear the class they chose at sign-up
+  if (p.class_id) await sb.from('profiles').update({ class_id: null }).eq('id', p.id);
+  state.ui.busy = false;
+  toast(p.full_name + ' is now a teacher. Assign their classes and subjects.', true);
+  state.ui.t = { sel: p.id, email: '', cls: '', subj: [] };
+  await loadAll(); render();
+}
+async function addAssignments() {
+  const u = state.ui.t;
+  if (!u.cls) return toast('Choose a class first.', false);
+  if (!u.subj.length) return toast('Choose at least one subject.', false);
+  const rows = u.subj.map((s) => ({ teacher_id: u.sel, class_id: u.cls, subject_id: s }));
+  state.ui.busy = true; render();
+  const { error } = await sb.from('teacher_assignments').upsert(rows, { onConflict: 'teacher_id,class_id,subject_id', ignoreDuplicates: true });
+  state.ui.busy = false;
+  if (error) { render(); return toast(dbError('Assignments were not saved.', error), false); }
+  toast('Added ' + rows.length + ' assignment' + (rows.length === 1 ? '' : 's') + ' in ' + className(u.cls) + '.', true);
+  u.subj = []; await loadAll(); render();
+}
+async function removeAssignment(id) {
+  const a = state.assignments.find((x) => x.id === id);
+  if (!confirm('Remove ' + className(a.class_id) + ' · ' + subjectName(a.subject_id) + ' from this teacher?')) return;
+  const { error } = await sb.from('teacher_assignments').delete().eq('id', id);
+  if (error) return toast(dbError('Not removed.', error), false);
+  toast('Assignment removed.', true); await loadAll(); render();
+}
+
+/* ---------- Classes & Subjects ---------- */
+function viewClasses() {
+  let html = pageHeader('Classes &amp; Subjects', 'Add, rename and remove the classes and subjects your school uses.');
+  if (state.error) return html + errorBox();
+  const u = state.ui.cs;
+  const counts = {}; students().forEach((s) => { if (s.class_id) counts[s.class_id] = (counts[s.class_id] || 0) + 1; });
+  const block = (kind, title, list, newKey, ph, sub) => '<section class="' + card + ' overflow-hidden flex-1 basis-[340px] min-w-0"><div class="px-4 lg:px-5 py-4 border-b border-slate-200 flex justify-between items-center"><h2 class="font-display font-bold text-lg">' + title + '</h2><span class="text-[13px] text-slate-600">' + list.length + '</span></div>' +
+    '<div class="px-4 lg:px-5 py-3.5 flex gap-2 border-b border-slate-100 bg-page"><input data-input="' + newKey + '" value="' + escapeHtml(u[newKey]) + '" placeholder="' + ph + '" aria-label="' + ph + '" class="field flex-1 min-w-0" style="height:44px"><button type="button" data-action="cs-add" data-kind="' + kind + '" class="flex-none min-h-[44px] px-4 rounded-[10px] bg-navy text-white font-semibold text-sm">Add</button></div>' +
+    (list.length ? list.map((x) => {
+      const editing = u.editKind === kind && u.editId === x.id;
+      if (editing) return '<div class="flex items-center gap-2 px-4 lg:px-5 py-2 border-b border-slate-100"><input data-input="cs-edit" value="' + escapeHtml(u.editVal) + '" aria-label="New name" class="field flex-1 min-w-0" style="height:42px;border-color:#1E3A8A"><button type="button" data-action="cs-rename" data-kind="' + kind + '" data-id="' + x.id + '" class="min-h-[42px] px-3 rounded-[9px] bg-navy text-white text-[13px] font-semibold">Save</button><button type="button" data-action="cs-cancel" class="min-h-[42px] px-3 rounded-[9px] border border-slate-300 text-[13px] font-semibold text-slate-700">Cancel</button></div>';
+      return '<div class="flex items-center gap-2 px-4 lg:px-5 py-2.5 border-b border-slate-100"><div class="flex-1 min-w-0"><div class="font-bold text-[15px]">' + escapeHtml(x.name) + '</div><div class="text-xs text-slate-600">' + sub(x) + '</div></div><button type="button" data-action="cs-edit" data-kind="' + kind + '" data-id="' + x.id + '" class="' + btnSmall + '">Rename</button><button type="button" data-action="cs-remove" data-kind="' + kind + '" data-id="' + x.id + '" class="' + btnDanger + '">Remove</button></div>';
+    }).join('') : '<p class="px-5 py-8 text-center text-sm text-slate-600">None yet.</p>') + '</section>';
+  html += '<div class="flex flex-wrap gap-4 lg:gap-5 items-start">' +
+    block('classes', 'Classes', state.classes, 'newClass', 'New class, e.g. JSS1A', (c) => (counts[c.id] || 0) + ' students · ' + state.assignments.filter((a) => a.class_id === c.id).length + ' teacher assignments') +
+    block('subjects', 'Subjects', state.subjects, 'newSubject', 'New subject, e.g. Biology', (s) => state.assignments.filter((a) => a.subject_id === s.id).length + ' teacher assignments') +
+    '</div><p class="mt-3 text-[13px] text-slate-600">A class with students in it can\'t be removed. Move its students first. A subject with saved results can\'t be removed.</p>';
+  return html;
+}
+async function csAdd(kind) {
+  const key = kind === 'classes' ? 'newClass' : 'newSubject';
+  const name = state.ui.cs[key].trim().replace(/\s+/g, ' ');
+  if (!name) return toast('Type a name first.', false);
+  const { error } = await sb.from(kind).insert({ name });
+  if (error) return toast(dbError(name + ' was not added.', error), false);
+  toast(name + ' added.', true); state.ui.cs[key] = ''; await loadAll(); render();
+}
+async function csRename(kind, id) {
+  const name = state.ui.cs.editVal.trim().replace(/\s+/g, ' ');
+  if (!name) return toast('The name cannot be empty.', false);
+  const { error } = await sb.from(kind).update({ name }).eq('id', id);
+  if (error) return toast(dbError('Not renamed.', error), false);
+  toast('Renamed to ' + name + '.', true); Object.assign(state.ui.cs, { editKind: null, editId: null }); await loadAll(); render();
+}
+async function csRemove(kind, id) {
+  const list = kind === 'classes' ? state.classes : state.subjects;
+  const x = list.find((y) => y.id === id);
+  if (kind === 'classes') {
+    const n = students().filter((s) => s.class_id === id).length;
+    if (n) return toast(x.name + ' has ' + n + ' student' + (n === 1 ? '' : 's') + '. Move them to another class before removing it.', false);
+  }
+  if (!confirm('Remove ' + x.name + '? ' + (kind === 'classes' ? 'Its teacher assignments and timetable entries will be removed too.' : 'Its teacher assignments will be removed too.'))) return;
+  const { error } = await sb.from(kind).delete().eq('id', id);
+  if (error) return toast(dbError(x.name + ' was not removed.', error), false);
+  toast(x.name + ' removed.', true); await loadAll(); render();
+}
+
+/* ---------- Fees ---------- */
+function viewFees() {
+  const u = state.ui.f;
+  let html = pageHeader('Fees', currentTermText() + ' · amount due and paid per student', termPill());
+  if (state.error) return html + errorBox();
+  const all = students();
+  let due = 0, paid = 0, out = 0;
+  all.forEach((s) => { const f = feeOf(s.id); if (f) { due += f.amount_due; paid += f.amount_paid; out += Math.max(f.amount_due - f.amount_paid, 0); } });
+  html += '<section class="grid grid-cols-3 gap-2 lg:gap-4 mb-3 lg:mb-5">' +
+    '<div class="' + card + ' p-3.5 lg:p-5"><div class="text-xs lg:text-sm text-slate-600">Total due</div><div class="font-display font-extrabold text-lg lg:text-[28px]">' + naira(due) + '</div></div>' +
+    '<div class="' + card + ' p-3.5 lg:p-5"><div class="text-xs lg:text-sm text-slate-600">Collected</div><div class="font-display font-extrabold text-lg lg:text-[28px] text-green-700">' + naira(paid) + '</div></div>' +
+    '<div class="bg-navy text-white rounded-2xl p-3.5 lg:p-5 shadow-navy"><div class="text-xs lg:text-sm text-indigo-200">Outstanding</div><div class="font-display font-extrabold text-lg lg:text-[28px] text-gold-light">' + naira(out) + '</div></div></section>';
+  html += '<div class="flex flex-wrap gap-2.5 lg:gap-3 items-center mb-3">' + searchBox('f-q', u.q, 'Search students') + classSelect('f-cls', u.cls, '<option value="all">All classes</option>') +
+    '<button type="button" role="switch" aria-checked="' + u.owing + '" data-action="f-owing" class="flex-none min-h-[44px] px-3.5 rounded-[10px] border-[1.5px] font-semibold text-sm inline-flex items-center gap-2.5 ' + (u.owing ? 'border-navy bg-navy-tint text-navy' : 'border-slate-300 bg-white text-slate-700') + '"><span class="relative w-[34px] h-5 rounded-full ' + (u.owing ? 'bg-navy' : 'bg-slate-300') + '"><span class="absolute top-0.5 w-4 h-4 rounded-full bg-white ' + (u.owing ? 'left-4' : 'left-0.5') + '"></span></span>Owing only</button></div>';
+  if (u.cls !== 'all') html += '<div class="' + card + ' p-3.5 lg:px-5 lg:py-4 mb-3 flex flex-col sm:flex-row gap-2.5 sm:items-center"><div class="flex-1 text-sm"><strong>Set amount due for everyone in ' + escapeHtml(className(u.cls)) + '</strong><div class="text-[13px] text-slate-600">Payments already recorded are kept.</div></div><input type="number" inputmode="numeric" min="0" data-input="f-bulk" value="' + escapeHtml(u.bulk) + '" placeholder="Amount in ₦" aria-label="Amount due for the class" class="field sm:w-44" style="height:44px"><button type="button" data-action="f-bulk" class="min-h-[44px] px-4 rounded-[10px] bg-navy text-white font-semibold text-sm">Apply to class</button></div>';
+
+  const q = u.q.toLowerCase();
+  const list = all.filter((s) => { const f = feeOf(s.id); const bal = f ? f.amount_due - f.amount_paid : 0;
+    return (u.cls === 'all' || s.class_id === u.cls) && (!u.owing || bal > 0) && (!q || s.full_name.toLowerCase().includes(q)); });
+  const cols = 'lg:grid lg:grid-cols-[minmax(0,1.8fr)_80px_minmax(0,1fr)_minmax(0,1fr)_150px]';
+  let table = '<section class="' + card + ' overflow-hidden lg:flex-[999_1_540px] min-w-0">';
+  if (!list.length) table += '<p class="px-6 py-10 text-center text-sm text-slate-600">' + (all.length ? 'No students match these filters.' : 'No students yet.') + '</p>';
+  else table += '<div class="hidden ' + cols + ' bg-page text-slate-600 text-[13px] font-semibold"><div class="px-5 py-3">Student</div><div class="px-2 py-3">Class</div><div class="px-2 py-3 text-right">Paid / Due</div><div class="px-2 py-3 text-right">Balance</div><div class="px-5 py-3"></div></div>' +
+    list.map((s) => { const f = feeOf(s.id); const bal = f ? f.amount_due - f.amount_paid : null;
+      const st = !f ? ['No fee set', 'bg-slate-100 text-slate-600'] : bal <= 0 ? ['Paid in full', 'bg-green-100 text-green-700'] : f.amount_paid > 0 ? ['Part payment', 'bg-amber-100 text-amber-800'] : ['Not paid', 'bg-red-100 text-red-700'];
+      return '<div class="border-t border-slate-100 flex ' + cols + ' items-center gap-2 px-3.5 lg:px-0 py-2.5 lg:py-0 ' + (u.sel === s.id ? 'bg-[#F5F7FF]' : '') + '">' +
+        '<div class="flex-1 min-w-0 lg:px-5 lg:py-2.5"><div class="font-semibold text-[15px] truncate">' + escapeHtml(s.full_name) + '</div><div class="flex flex-wrap gap-1.5 items-center mt-0.5"><span class="px-2 py-0.5 rounded-full text-[11px] font-bold ' + st[1] + '">' + st[0] + '</span><span class="lg:hidden text-xs text-slate-600">' + escapeHtml(className(s.class_id) || 'No class') + (f ? ' · paid ' + naira(f.amount_paid) + ' of ' + naira(f.amount_due) : '') + '</span></div></div>' +
+        '<div class="hidden lg:block px-2 text-sm font-semibold text-slate-700">' + escapeHtml(className(s.class_id) || '—') + '</div>' +
+        '<div class="hidden lg:block px-2 text-right tnum text-sm">' + (f ? '<div class="font-semibold">' + naira(f.amount_paid) + '</div><div class="text-xs text-slate-600">of ' + naira(f.amount_due) + '</div>' : '—') + '</div>' +
+        '<div class="text-right lg:px-2 font-extrabold tnum text-[15px] ' + (bal > 0 ? 'text-amber-800' : 'text-green-700') + '">' + (f ? naira(Math.max(bal, 0)) : '') + '</div>' +
+        '<div class="flex-none flex gap-1.5 justify-end lg:px-5"><button type="button" data-action="f-open" data-mode="due" data-id="' + s.id + '" class="' + btnSmall + ' min-h-[44px] lg:min-h-[36px]">Set due</button>' + (f && bal > 0 ? '<button type="button" data-action="f-open" data-mode="pay" data-id="' + s.id + '" class="min-h-[44px] lg:min-h-[36px] px-3 rounded-[9px] border border-navy bg-white text-navy font-semibold text-[13px]">Payment</button>' : '') + '</div></div>'; }).join('');
+  table += '</section>';
+  let side = '';
+  const s = all.find((x) => x.id === u.sel);
+  if (s && u.mode) {
+    const f = feeOf(s.id), bal = f ? f.amount_due - f.amount_paid : 0;
+    const head = '<div class="flex justify-between items-start gap-3 mb-4"><div><div class="text-[13px] text-slate-600 font-semibold">' + (u.mode === 'pay' ? 'Record a payment' : 'Set amount due') + ' · ' + currentTermText() + '</div><h2 class="font-display font-bold text-xl mt-0.5">' + escapeHtml(s.full_name) + '</h2><div class="text-sm text-slate-600">' + escapeHtml(className(s.class_id) || 'No class') + (f ? ' · balance <strong class="text-amber-800">' + naira(Math.max(bal, 0)) + '</strong>' : '') + '</div></div>' + closeBtn('f-close') + '</div>';
+    const body = u.mode === 'pay'
+      ? '<label class="lbl" for="f-amount">Amount paid (₦)</label><input id="f-amount" type="number" inputmode="numeric" min="1" data-input="f-amount" value="' + escapeHtml(u.amount) + '" class="field mb-3.5"><p class="text-[13px] text-slate-600 mb-5">Paid so far ' + naira(f.amount_paid) + ' of ' + naira(f.amount_due) + '. This adds to the amount paid.</p><button type="button" data-action="f-pay" class="w-full ' + btnPrimary + '"' + (state.ui.busy ? ' disabled' : '') + '>Save payment</button>'
+      : '<label class="lbl" for="f-amount">Amount due this term (₦)</label><input id="f-amount" type="number" inputmode="numeric" min="0" data-input="f-amount" value="' + escapeHtml(u.amount) + '" class="field mb-3.5"><p class="text-[13px] text-slate-600 mb-5">' + (f ? 'Paid so far: ' + naira(f.amount_paid) + '. Changing the amount due does not change payments.' : 'No fee has been set for this student this term yet.') + '</p><button type="button" data-action="f-due" class="w-full ' + btnPrimary + '"' + (state.ui.busy ? ' disabled' : '') + '>Save amount due</button>';
+    side = panel(head + body, 'f-close');
+  }
+  return html + '<div class="flex flex-wrap gap-5 items-start">' + table + side + '</div><p class="mt-3 text-[13px] text-slate-600">Balance = amount due − amount paid.</p>';
+}
+async function saveDue() {
+  const u = state.ui.f, s = students().find((x) => x.id === u.sel);
+  const amt = Math.round(Number(u.amount));
+  if (u.amount === '' || isNaN(amt) || amt < 0) return toast('Enter an amount due of ₦0 or more.', false);
+  state.ui.busy = true; render();
+  const { error } = await sb.from('fees').upsert({ student_id: s.id, term: SCHOOL.currentTerm, session: SCHOOL.currentSession, amount_due: amt }, { onConflict: 'student_id,term,session' });
+  state.ui.busy = false;
+  if (error) { render(); return toast(dbError('Amount due was not saved.', error), false); }
+  toast('Amount due for ' + s.full_name + ' set to ' + naira(amt) + '.', true);
+  Object.assign(u, { sel: null, mode: null, amount: '' }); await loadAll(); render();
+}
+async function savePayment() {
+  const u = state.ui.f, s = students().find((x) => x.id === u.sel), f = feeOf(s.id);
+  const amt = Math.round(Number(u.amount)), bal = f.amount_due - f.amount_paid;
+  if (!amt || amt <= 0) return toast('Enter a payment greater than ₦0.', false);
+  if (amt > bal) return toast('That is more than the balance of ' + naira(bal) + '.', false);
+  state.ui.busy = true; render();
+  const r = await sb.from('fees').update({ amount_paid: f.amount_paid + amt, updated_at: new Date().toISOString() }).eq('id', f.id).select('amount_due, amount_paid');
+  state.ui.busy = false;
+  if (r.error || !r.data || !r.data.length) { render(); return toast(dbError('Payment was not saved.', r.error || { message: 'No fee row was updated.' }), false); }
+  toast(naira(amt) + ' recorded for ' + s.full_name + '. New balance: ' + naira(r.data[0].amount_due - r.data[0].amount_paid) + '.', true);
+  Object.assign(u, { sel: null, mode: null, amount: '' }); await loadAll(); render();
+}
+async function bulkDue() {
+  const u = state.ui.f;
+  const amt = Math.round(Number(u.bulk));
+  if (u.bulk === '' || isNaN(amt) || amt < 0) return toast('Enter an amount due of ₦0 or more.', false);
+  const studs = students().filter((s) => s.class_id === u.cls);
+  if (!studs.length) return toast('There are no students in ' + className(u.cls) + '.', false);
+  if (!confirm('Set the amount due to ' + naira(amt) + ' for all ' + studs.length + ' students in ' + className(u.cls) + '?')) return;
+  const rows = studs.map((s) => ({ student_id: s.id, term: SCHOOL.currentTerm, session: SCHOOL.currentSession, amount_due: amt }));
+  const { error } = await sb.from('fees').upsert(rows, { onConflict: 'student_id,term,session' });
+  if (error) return toast(dbError('Amounts were not saved.', error), false);
+  toast('Amount due set to ' + naira(amt) + ' for ' + studs.length + ' students in ' + className(u.cls) + '.', true);
+  u.bulk = ''; await loadAll(); render();
+}
+
+/* ---------- Announcements ---------- */
+function viewAnnouncements() {
+  const u = state.ui.n;
+  let html = pageHeader('Announcements', 'Notices appear for every student and teacher as soon as you publish them.');
+  if (state.error) return html + errorBox();
+  html += '<div class="flex flex-wrap gap-4 lg:gap-5 items-start">' +
+    '<section class="' + card + ' p-4 lg:p-[22px] flex-1 basis-[320px] min-w-0 ' + (u.editId ? 'border-[1.5px] border-navy' : '') + '"><h2 class="font-display font-bold text-[17px] lg:text-lg mb-3">' + (u.editId ? 'Edit notice' : 'Write a new notice') + '</h2>' +
+    '<label class="lbl" for="n-title">Title</label><input id="n-title" data-input="n-title" value="' + escapeHtml(u.title) + '" maxlength="140" placeholder="e.g. School closes early on Friday" class="field mb-3.5">' +
+    '<label class="lbl" for="n-body">Message</label><textarea id="n-body" data-input="n-body" rows="6" placeholder="Write the full notice here." class="field">' + escapeHtml(u.body) + '</textarea>' +
+    '<div class="flex gap-2.5 mt-4"><button type="button" data-action="n-save" class="flex-1 ' + btnPrimary + '"' + (state.ui.busy ? ' disabled' : '') + '>' + (u.editId ? 'Save changes' : 'Publish notice') + '</button>' + (u.editId ? '<button type="button" data-action="n-cancel" class="' + btnGhost + '">Cancel</button>' : '') + '</div></section>' +
+    '<section class="flex-[999_1_420px] min-w-0 flex flex-col gap-2.5"><div class="flex justify-between items-baseline"><h2 class="font-display font-bold text-[17px] lg:text-lg">Published notices</h2><span class="text-[13px] text-slate-600">' + state.announcements.length + ', newest first</span></div>' +
+    (state.announcements.length ? state.announcements.map((n) => '<article class="bg-white rounded-[14px] px-4 lg:px-[18px] py-3.5 shadow-card ' + (n.id === u.editId ? 'border-[1.5px] border-navy' : 'border border-slate-200') + '"><div class="text-xs font-semibold text-slate-600 mb-1">' + formatDate(n.created_at, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + '</div><div class="font-bold text-[15px] leading-snug">' + escapeHtml(n.title) + '</div><p class="mt-1 mb-3 text-sm leading-relaxed text-slate-700 whitespace-pre-line">' + escapeHtml(n.body) + '</p>' +
+      (u.confirm === n.id ? '<div class="flex flex-wrap gap-2 items-center p-3 rounded-[10px] bg-red-50"><span class="flex-1 text-[13px] font-semibold text-red-800">Delete this notice for everyone?</span><button type="button" data-action="n-delete" data-id="' + n.id + '" class="min-h-[40px] px-3 rounded-[9px] bg-red-700 text-white text-[13px] font-semibold">Yes, delete</button><button type="button" data-action="n-keep" class="min-h-[40px] px-3 rounded-[9px] border border-slate-300 bg-white text-[13px] font-semibold text-slate-700">Keep</button></div>'
+        : '<div class="flex gap-2"><button type="button" data-action="n-edit" data-id="' + n.id + '" class="' + btnSmall + ' min-h-[44px] lg:min-h-[36px]">Edit</button><button type="button" data-action="n-ask" data-id="' + n.id + '" class="' + btnDanger + ' min-h-[44px] lg:min-h-[36px]">Delete</button></div>') + '</article>').join('') : '<div class="' + card + ' px-6 py-10 text-center text-sm text-slate-600">No announcements yet.</div>') +
+    '</section></div>';
+  return html;
+}
+async function saveNotice() {
+  const u = state.ui.n, title = u.title.trim(), body = u.body.trim();
+  if (!title || !body) return toast('Add a title and a message before publishing.', false);
+  state.ui.busy = true; render();
+  const { error } = u.editId ? await sb.from('announcements').update({ title, body }).eq('id', u.editId) : await sb.from('announcements').insert({ title, body });
+  state.ui.busy = false;
+  if (error) { render(); return toast(dbError('The notice was not saved.', error), false); }
+  toast(u.editId ? 'Notice updated.' : 'Notice published. Everyone can see it now.', true);
+  state.ui.n = { editId: null, title: '', body: '', confirm: null }; await loadAll(); render();
+}
+async function deleteNotice(id) {
+  const { error } = await sb.from('announcements').delete().eq('id', id);
+  if (error) return toast(dbError('The notice was not deleted.', error), false);
+  toast('Notice deleted.', true);
+  if (state.ui.n.editId === id) state.ui.n = { editId: null, title: '', body: '', confirm: null }; else state.ui.n.confirm = null;
+  await loadAll(); render();
+}
+
+/* ---------- Rendering ---------- */
+const RENDER = { dashboard: viewDashboard, students: viewStudents, teachers: viewTeachers, classes: viewClasses, fees: viewFees, announcements: viewAnnouncements };
+const currentView = () => { const v = location.hash.replace('#', ''); return RENDER[v] ? v : 'dashboard'; };
+function renderChrome(view) {
+  document.getElementById('side-nav').innerHTML = Object.keys(VIEWS).map((k) => { const on = k === view;
+    return '<a href="#' + k + '"' + (on ? ' aria-current="page"' : '') + ' class="flex items-center gap-3 min-h-[44px] px-3 rounded-[10px] text-[15px] ' + (on ? 'bg-white/[0.14] text-white font-semibold' : 'text-slate-300 font-medium hover:bg-white/10 hover:text-white') + '">' + icon(k, 20, on ? 'style="color:#D4A017"' : '') + VIEWS[k].replace('&', '&amp;') + '</a>'; }).join('');
+  document.getElementById('bottom-nav').innerHTML = BOTTOM.map(([k, label, ic]) => { const on = k === view || (k === 'teachers' && view === 'classes');
+    return '<a href="#' + k + '"' + (on ? ' aria-current="page"' : '') + ' class="flex flex-col items-center justify-center gap-[3px] min-h-[52px] text-xs ' + (on ? 'text-navy font-bold' : 'text-slate-600 font-medium') + '"><span class="w-[52px] h-[30px] rounded-full flex items-center justify-center ' + (on ? 'bg-navy-soft' : '') + '">' + icon(ic, 20) + '</span>' + label + '</a>'; }).join('');
+  const more = document.getElementById('more-tabs');
+  more.classList.toggle('hidden', !['teachers', 'classes'].includes(view));
+  more.innerHTML = [['teachers', 'Teachers'], ['classes', 'Classes &amp; Subjects']].map(([k, l]) => '<a href="#' + k + '"' + (k === view ? ' aria-current="page"' : '') + ' class="flex items-center justify-center min-h-[46px] text-sm border-b-[3px] ' + (k === view ? 'font-bold text-navy border-navy' : 'font-medium text-slate-600 border-transparent') + '">' + l + '</a>').join('');
+  const name = (state.me && state.me.full_name) || state.user.email;
+  document.querySelectorAll('[data-bind="initials"]').forEach((el) => { el.textContent = initials(name); });
+  document.querySelectorAll('[data-bind="name"]').forEach((el) => { el.textContent = name; });
+  document.getElementById('m-title').textContent = VIEWS[view];
+  document.getElementById('m-sub').textContent = 'Admin · ' + TERM_NAMES[SCHOOL.currentTerm] + ' ' + SCHOOL.currentSession;
+  document.title = VIEWS[view] + ' — Crestfield College';
+}
+function render(scrollTop) {
+  const view = currentView();
+  renderChrome(view);
+  document.getElementById('view').innerHTML = RENDER[view]();
+  if (scrollTop) window.scrollTo(0, 0);
+}
+// Re-render while typing in a search box, keeping the cursor in place
+function rerenderKeepFocus(key) {
+  render();
+  const el = document.querySelector('[data-input="' + key + '"]');
+  if (el) { el.focus(); const v = el.value; el.value = ''; el.value = v; }
+}
+
+/* ---------- Events ---------- */
+window.addEventListener('hashchange', () => render(true));
+document.addEventListener('click', async (e) => {
+  const el = e.target.closest('[data-action]'); if (!el) return;
+  const a = el.dataset.action, id = el.dataset.id, ui = state.ui;
+  if (a === 'logout') { if (confirm('Log out of the admin portal?')) signOut(); return; }
+  if (a === 'retry') { await loadAll(); return render(); }
+  // Students
+  if (a === 's-edit') { const p = state.profiles.find((x) => x.id === id); ui.s.edit = { ...p }; return render(); }
+  if (a === 's-close') { ui.s.edit = null; return render(); }
+  if (a === 's-save') return saveStudent();
+  // Teachers
+  if (a === 't-promote') return promoteTeacher();
+  if (a === 't-pick') { ui.t.sel = id; ui.t.cls = ''; ui.t.subj = []; return render(); }
+  if (a === 't-close') { ui.t.sel = null; return render(); }
+  if (a === 't-subj') { const i = ui.t.subj.indexOf(id); i >= 0 ? ui.t.subj.splice(i, 1) : ui.t.subj.push(id); return render(); }
+  if (a === 't-assign') return addAssignments();
+  if (a === 't-unassign') return removeAssignment(id);
+  // Classes & subjects
+  if (a === 'cs-add') return csAdd(el.dataset.kind);
+  if (a === 'cs-edit') { const list = el.dataset.kind === 'classes' ? state.classes : state.subjects; Object.assign(ui.cs, { editKind: el.dataset.kind, editId: id, editVal: list.find((x) => x.id === id).name }); return render(); }
+  if (a === 'cs-cancel') { Object.assign(ui.cs, { editKind: null, editId: null }); return render(); }
+  if (a === 'cs-rename') return csRename(el.dataset.kind, id);
+  if (a === 'cs-remove') return csRemove(el.dataset.kind, id);
+  // Fees
+  if (a === 'f-owing') { ui.f.owing = !ui.f.owing; return render(); }
+  if (a === 'f-open') { const f = feeOf(id); Object.assign(ui.f, { sel: id, mode: el.dataset.mode, amount: el.dataset.mode === 'pay' ? String(Math.max(f.amount_due - f.amount_paid, 0)) : (f ? String(f.amount_due) : '') }); return render(); }
+  if (a === 'f-close') { Object.assign(ui.f, { sel: null, mode: null }); return render(); }
+  if (a === 'f-due') return saveDue();
+  if (a === 'f-pay') return savePayment();
+  if (a === 'f-bulk') return bulkDue();
+  // Announcements
+  if (a === 'n-save') return saveNotice();
+  if (a === 'n-cancel') { ui.n = { editId: null, title: '', body: '', confirm: null }; return render(); }
+  if (a === 'n-edit') { const n = state.announcements.find((x) => x.id === id); ui.n = { editId: id, title: n.title, body: n.body, confirm: null }; render(); window.scrollTo(0, 0); return; }
+  if (a === 'n-ask') { ui.n.confirm = id; return render(); }
+  if (a === 'n-keep') { ui.n.confirm = null; return render(); }
+  if (a === 'n-delete') return deleteNotice(id);
+});
+document.addEventListener('change', (e) => {
+  const k = e.target.dataset.change, ui = state.ui;
+  if (k === 's-cls') { ui.s.cls = e.target.value; render(); }
+  if (k === 'f-cls') { ui.f.cls = e.target.value; render(); }
+  if (k === 't-cls') { ui.t.cls = e.target.value; ui.t.subj = []; render(); }
+  if (e.target.dataset.edit && ui.s.edit) ui.s.edit[e.target.dataset.edit] = e.target.value;
+});
+document.addEventListener('input', (e) => {
+  const t = e.target, k = t.dataset.input, ui = state.ui;
+  if (t.dataset.edit && ui.s.edit) { ui.s.edit[t.dataset.edit] = t.value; return; }
+  if (k === 's-q') { ui.s.q = t.value; return rerenderKeepFocus(k); }
+  if (k === 'f-q') { ui.f.q = t.value; return rerenderKeepFocus(k); }
+  if (k === 't-email') ui.t.email = t.value;
+  if (k === 'cs-edit') ui.cs.editVal = t.value;
+  if (k === 'newClass' || k === 'newSubject') ui.cs[k] = t.value;
+  if (k === 'f-amount') ui.f.amount = t.value;
+  if (k === 'f-bulk') ui.f.bulk = t.value;
+  if (k === 'n-title') ui.n.title = t.value;
+  if (k === 'n-body') ui.n.body = t.value;
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+  const k = e.target.dataset.input;
+  if (k === 't-email') promoteTeacher();
+  if (k === 'newClass') csAdd('classes');
+  if (k === 'newSubject') csAdd('subjects');
+});
+sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.replace('login.html'); });
+
+(async function start() {
+  mountCrests();
+  const user = await requireRole('admin');
+  if (!user) return;
+  state.user = user;
+  await loadAll();
+  document.getElementById('boot').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  mountCrests();
+  render();
+})();
+</script>
+</body>
+</html>
